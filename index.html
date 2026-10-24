@@ -115,7 +115,7 @@
           </div>
           <div>
             <h2 class="text-xs font-bold text-white">Copilot Engine</h2>
-            <p class="text-[10px] text-zinc-400">Gemini / OpenRouter / Zero-Key</p>
+            <p class="text-[10px] text-zinc-400">Gemini 3.5 / OpenRouter / Venice</p>
           </div>
         </div>
       </div>
@@ -124,12 +124,12 @@
       <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
         <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
           <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400"></i> API Fixes Applied:
+            <i data-lucide="rocket" class="w-3.5 h-3.5 text-blue-400"></i> Next-Gen Enabled:
           </p>
           <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li><b>Gemini</b>: Now uses stable models and secure header auth.</li>
-            <li><b>OpenRouter</b>: Fallback loop fixed for free models.</li>
-            <li><b>Zero-Key Backup</b>: Always available if keys fail.</li>
+            <li><b>Gemini</b>: Upgraded to request <code>gemini-3.5-flash-lite</code>.</li>
+            <li><b>Venice.ai</b>: Ready for uncensored local/cloud generation!</li>
+            <li><b>OpenRouter</b>: Auto-skips models that are no longer free.</li>
           </ul>
         </div>
       </div>
@@ -150,10 +150,10 @@
         <div class="flex items-center justify-between text-[11px]">
           <span class="text-zinc-400">Engine:</span>
           <select id="engineSelector" class="bg-[#1e1e1e] border border-[#3c3c3c] text-purple-300 text-[11px] rounded px-2 py-0.5 outline-none font-medium">
-            <option value="gemini" selected>🟣 Google Gemini</option>
-            <option value="openrouter">🔵 OpenRouter</option>
-            <option value="zerokey">🟢 Zero-Key Local AI</option>
-            <option value="auto">⚡ Auto-Failover (Try all)</option>
+            <option value="gemini" selected>🟣 Gemini 3.5 Flash Lite</option>
+            <option value="openrouter">🔵 OpenRouter Free Pool</option>
+            <option value="venice">🔴 Venice.ai (Uncensored)</option>
+            <option value="zerokey">🟢 Zero-Key Backup AI</option>
           </select>
         </div>
 
@@ -180,7 +180,7 @@
         <button id="closeSettingsBtn" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <div class="space-y-4 my-4">
+      <div class="space-y-4 my-4 max-h-[60vh] overflow-y-auto pr-2">
         <!-- Google Gemini -->
         <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
           <div class="flex items-center justify-between">
@@ -199,6 +199,15 @@
           </div>
           <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#141414] border border-[#3c3c3c] focus:border-blue-500 rounded p-2 text-zinc-200 outline-none font-mono text-[11px]" />
           <div id="orTestResult" class="text-[10px] hidden font-mono"></div>
+        </div>
+
+        <!-- Venice.ai (Uncensored) -->
+        <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-white flex items-center gap-1"><i data-lucide="flame" class="w-3 h-3 text-red-400"></i> Venice.AI Key (Uncensored)</label>
+            <a href="https://venice.ai/settings/api" target="_blank" class="text-[10px] text-red-400 hover:underline">Get Key</a>
+          </div>
+          <input type="password" id="veniceKey" placeholder="Paste Venice API Key..." class="w-full bg-[#141414] border border-[#3c3c3c] focus:border-red-500 rounded p-2 text-zinc-200 outline-none font-mono text-[11px]" />
         </div>
       </div>
 
@@ -340,6 +349,7 @@
     document.getElementById('saveVaultBtn').onclick = () => {
       localStorage.setItem('nexus_gemini_key', document.getElementById('geminiKey').value.trim());
       localStorage.setItem('nexus_openrouter_key', document.getElementById('openRouterKey').value.trim());
+      localStorage.setItem('nexus_venice_key', document.getElementById('veniceKey').value.trim());
       settingsModal.classList.add('hidden');
       appendChat("System", "API Keys saved.");
     };
@@ -390,7 +400,7 @@
       const container = document.getElementById('chatFeed');
       const div = document.createElement('div');
       div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'}`;
-      div.innerHTML = `<div class="font-bold text-[11px] mb-1 text-purple-400">${sender}</div><div class="break-words">${msg}</div>`;
+      div.innerHTML = `<div class="font-bold text-[11px] mb-1 ${sender.includes('Venice') ? 'text-red-400' : 'text-purple-400'}">${sender}</div><div class="break-words">${msg}</div>`;
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }
@@ -414,11 +424,11 @@
     }
 
     async function generateGemini(key, promptText) {
-      // NOTE: Removed ?key= from URL completely. Header auth ONLY. Fixes 404 for AQ. keys.
       const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
       const body = JSON.stringify({ contents: [{ parts: [{ text: `Create a complete HTML app for: "${promptText}". Return code inside \`\`\`html\`\`\`.` }] }] });
       
-      const models = ['gemini-1.5-flash', 'gemini-2.0-flash'];
+      // Specifically querying gemini-3.5-flash-lite as requested!
+      const models = ['gemini-3.5-flash-lite', 'gemini-3.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash'];
       for (const m of models) {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers, body });
         const data = await res.json();
@@ -431,11 +441,16 @@
         const code = extractHTML(data.candidates?.[0]?.content?.parts?.[0]?.text);
         if (code && code.length > 50) return code;
       }
-      throw new Error("Both Gemini models returned empty responses.");
+      throw new Error("All Gemini models returned empty responses or 404s.");
     }
 
     async function generateOpenRouter(key, promptText) {
-      const models = ["qwen/qwen-2.5-coder-32b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemini-2.0-pro-exp-02-05:free"];
+      // Robust free model array. If one is paid/offline, it auto-skips to the next!
+      const models = [
+        "meta-llama/llama-3.1-8b-instruct:free", 
+        "google/gemini-2.0-flash-exp:free",
+        "mistralai/mistral-small-24b-instruct-2501:free"
+      ];
       
       for (const m of models) {
         const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -443,7 +458,7 @@
           headers: {
             "Authorization": `Bearer ${key}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://nexuside.vercel.app",
+            "HTTP-Referer": window.location.href,
             "X-Title": "NexusIDE"
           },
           body: JSON.stringify({
@@ -453,8 +468,13 @@
         });
 
         const data = await res.json();
+        
+        // AGGRESSIVE FALLBACK: If it says "paid" or throws an error, just skip and try the next one!
         if (!res.ok) {
-          if (data.error && data.error.message.includes("does not exist")) continue; // 404 fallback
+          if (data.error && (data.error.message.includes("unavailable for free") || data.error.message.includes("does not exist"))) {
+            appendChat("OpenRouter Notice", `Model ${m} is paid/offline. Trying next...`);
+            continue; 
+          }
           throw new Error(`OpenRouter Error: ${data.error?.message || res.statusText}`);
         }
 
@@ -464,6 +484,30 @@
       throw new Error("OpenRouter models busy or unavailable.");
     }
 
+    async function generateVenice(key, promptText) {
+      const res = await fetch("https://api.venice.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "default", // Venice auto-routes to their best uncensored model
+          messages: [
+            { role: "system", content: "You are an expert uncensored web developer. Output only raw HTML code inside ```html```." },
+            { role: "user", content: `Create a single HTML file for: "${promptText}".` }
+          ]
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Venice API Error: ${data.error?.message || res.statusText}`);
+      
+      const code = extractHTML(data.choices?.[0]?.message?.content);
+      if (code && code.length > 50) return code;
+      throw new Error("Venice.ai returned empty code.");
+    }
+
     // --- SUBMIT HANDLER ---
     document.getElementById('submitPromptBtn').onclick = async () => {
       const promptInput = document.getElementById('aiPromptInput');
@@ -471,6 +515,7 @@
       const selectedEngine = document.getElementById('engineSelector').value;
       const gKey = document.getElementById('geminiKey').value.trim() || localStorage.getItem('nexus_gemini_key');
       const oKey = document.getElementById('openRouterKey').value.trim() || localStorage.getItem('nexus_openrouter_key');
+      const vKey = document.getElementById('veniceKey').value.trim() || localStorage.getItem('nexus_venice_key');
 
       if (!prompt) return;
 
@@ -491,7 +536,7 @@
         } 
         else if (selectedEngine === "gemini") {
           if (!gKey) throw new Error("Gemini Key missing. Please add it in the Vault.");
-          appendChat("System", "Generating via Google Gemini...");
+          appendChat("System", "Generating via Google Gemini 3.5 Flash Lite...");
           finalCode = await generateGemini(gKey, prompt);
         }
         else if (selectedEngine === "openrouter") {
@@ -499,8 +544,12 @@
           appendChat("System", "Generating via OpenRouter Free Models...");
           finalCode = await generateOpenRouter(oKey, prompt);
         }
+        else if (selectedEngine === "venice") {
+          if (!vKey) throw new Error("Venice.ai Key missing. Please add it in the Vault.");
+          appendChat("System", "Generating via Venice.ai (Uncensored)...");
+          finalCode = await generateVenice(vKey, prompt);
+        }
         else if (selectedEngine === "auto") {
-          // Auto cascade
           if (gKey) {
             try { appendChat("System", "Trying Gemini..."); finalCode = await generateGemini(gKey, prompt); } catch(e) { appendChat("Error", e.message); }
           }
@@ -533,6 +582,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('geminiKey').value = localStorage.getItem('nexus_gemini_key') || '';
       document.getElementById('openRouterKey').value = localStorage.getItem('nexus_openrouter_key') || '';
+      document.getElementById('veniceKey').value = localStorage.getItem('nexus_venice_key') || '';
       initEditor();
     });
   </script>
