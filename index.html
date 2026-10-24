@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NexusIDE — Multi-AI Web Studio</title>
+  <title>NexusIDE — Agentic AI Web Studio</title>
 
   <script>
     const _origWarn = console.warn;
@@ -44,22 +44,17 @@
         <i data-lucide="file-up" class="w-3.5 h-3.5 text-blue-400"></i> File
         <input type="file" id="fileImportInput" class="hidden" accept=".html,.css,.js,.json,.txt,.svg" />
       </label>
-
       <label class="flex items-center gap-1 bg-[#2d2d30] hover:bg-[#3e3e42] border border-[#444] text-zinc-300 px-2.5 py-1 rounded cursor-pointer transition" title="Import Entire Folder">
         <i data-lucide="folder-up" class="w-3.5 h-3.5 text-yellow-400"></i> Folder
         <input type="file" id="folderImportInput" class="hidden" webkitdirectory directory multiple />
       </label>
-
       <span class="text-zinc-600">|</span>
-
       <button id="runBtn" class="flex items-center gap-1.5 bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded transition font-medium">
         <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Run
       </button>
-
       <button id="downloadActiveBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#484848] text-white px-2 py-1 rounded transition">
         <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
       </button>
-
       <button id="openSettingsBtn" class="flex items-center gap-1.5 bg-purple-950/70 hover:bg-purple-900 border border-purple-700/60 text-purple-200 px-2.5 py-1 rounded transition">
         <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i> Vault / Setup
       </button>
@@ -114,7 +109,7 @@
             <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
           </div>
           <div>
-            <h2 class="text-xs font-bold text-white">Copilot Engine</h2>
+            <h2 class="text-xs font-bold text-white">Agentic Copilot</h2>
             <p class="text-[10px] text-zinc-400">Gemini 3.5 / OpenRouter / Venice</p>
           </div>
         </div>
@@ -124,12 +119,12 @@
       <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
         <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
           <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="rocket" class="w-3.5 h-3.5 text-blue-400"></i> Next-Gen Enabled:
+            <i data-lucide="cpu" class="w-3.5 h-3.5 text-blue-400"></i> AI Workspace Control:
           </p>
           <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li><b>Gemini</b>: Upgraded to request <code>gemini-3.5-flash-lite</code>.</li>
-            <li><b>Venice.ai</b>: Ready for uncensored local/cloud generation!</li>
-            <li><b>OpenRouter</b>: Auto-skips models that are no longer free.</li>
+            <li><b>Agentic Files</b>: AI can now create, delete, and modify multiple files autonomously!</li>
+            <li><b>Try asking:</b> <i>"Create test.html with a blue button and style.css for the theme."</i></li>
+            <li><b>Bulletproof Routing</b>: OpenRouter catches <b>any</b> error and jumps to the next free model.</li>
           </ul>
         </div>
       </div>
@@ -158,7 +153,7 @@
         </div>
 
         <div class="relative">
-          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Build a Kanban board with drag and drop')..."
+          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Create test.html with a red background')..."
             class="w-full bg-[#1e1e1e] text-zinc-200 border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-xs resize-none outline-none focus:ring-1 focus:ring-purple-500"></textarea>
           <button id="submitPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-lg">
             <span>Generate</span>
@@ -181,7 +176,6 @@
       </div>
 
       <div class="space-y-4 my-4 max-h-[60vh] overflow-y-auto pr-2">
-        <!-- Google Gemini -->
         <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
           <div class="flex items-center justify-between">
             <label class="font-semibold text-white">Google Gemini API Key</label>
@@ -191,7 +185,6 @@
           <div id="geminiTestResult" class="text-[10px] hidden font-mono"></div>
         </div>
 
-        <!-- OpenRouter -->
         <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
           <div class="flex items-center justify-between">
             <label class="font-semibold text-white">OpenRouter API Key</label>
@@ -201,7 +194,6 @@
           <div id="orTestResult" class="text-[10px] hidden font-mono"></div>
         </div>
 
-        <!-- Venice.ai (Uncensored) -->
         <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
           <div class="flex items-center justify-between">
             <label class="font-semibold text-white flex items-center gap-1"><i data-lucide="flame" class="w-3 h-3 text-red-400"></i> Venice.AI Key (Uncensored)</label>
@@ -225,7 +217,7 @@
     try { lucide.createIcons(); } catch(e) {}
 
     const projectFiles = {
-      "index.html": `<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: sans-serif; text-align: center; margin-top: 20%; background: #18181b; color: white; }\n  </style>\n</head>\n<body>\n  <h1>NexusIDE Ready</h1>\n  <p>Select your AI engine on the right and type a prompt to begin.</p>\n</body>\n</html>`
+      "index.html": `<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: sans-serif; text-align: center; margin-top: 20%; background: #18181b; color: white; }\n  </style>\n</head>\n<body>\n  <h1>NexusIDE Ready</h1>\n  <p>Select your AI engine and type a prompt to begin!</p>\n</body>\n</html>`
     };
 
     let activeFileName = "index.html";
@@ -267,6 +259,7 @@
     }
 
     function switchFile(fileName) {
+      if (!projectFiles[fileName] && projectFiles[fileName] !== "") return;
       if (editor) projectFiles[activeFileName] = editor.getValue();
       activeFileName = fileName;
       document.getElementById('activeFileTitle').textContent = fileName;
@@ -281,9 +274,8 @@
       refreshPreview();
     }
 
-    // Importing files
     document.getElementById('newFileBtn').onclick = () => {
-      const name = prompt("File name (e.g., script.js):");
+      const name = prompt("File name (e.g., style.css, script.js, test.html):");
       if (name && !projectFiles[name]) { projectFiles[name] = ""; renderFileList(); switchFile(name); }
     };
     document.getElementById('fileImportInput').onchange = (e) => {
@@ -310,7 +302,6 @@
       a.click();
     };
 
-    // Editor & Preview Setup
     function initEditor() {
       try {
         if (window.ace) {
@@ -333,7 +324,11 @@
     }
 
     function refreshPreview() {
-      let html = projectFiles["index.html"] || Object.values(projectFiles)[0] || "";
+      // If the user is on an HTML file, preview THAT file. Otherwise default to index.html
+      let targetHtml = activeFileName.endsWith('.html') ? activeFileName : "index.html";
+      let html = projectFiles[targetHtml] || Object.values(projectFiles).find(c => c.includes('<html')) || "";
+      
+      // Auto-inject CSS and JS globally for rapid prototyping
       if (projectFiles["style.css"]) html = html.replace('</head>', `<style>\n${projectFiles["style.css"]}\n</style></head>`);
       if (projectFiles["script.js"]) html = html.replace('</body>', `<script>\n${projectFiles["script.js"]}\n<\/script></body>`);
       document.getElementById('previewFrame').srcdoc = html;
@@ -342,7 +337,6 @@
     document.getElementById('runBtn').onclick = refreshPreview;
     document.getElementById('refreshBtn').onclick = refreshPreview;
 
-    // Vault Logic
     const settingsModal = document.getElementById('settingsModal');
     document.getElementById('openSettingsBtn').onclick = () => settingsModal.classList.remove('hidden');
     document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.add('hidden');
@@ -360,7 +354,6 @@
       const resDiv = document.getElementById('geminiTestResult');
       resDiv.classList.remove('hidden');
       if (!key) { resDiv.textContent = "❌ Enter a key first."; resDiv.className = "text-[10px] text-red-400 mt-1"; return; }
-      
       resDiv.textContent = "⏳ Testing key..."; resDiv.className = "text-[10px] text-zinc-400 mt-1";
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
@@ -368,7 +361,7 @@
         if (res.ok) {
           resDiv.textContent = "✅ Key is valid and active!"; resDiv.className = "text-[10px] text-green-400 mt-1";
         } else {
-          resDiv.textContent = `❌ ${data.error?.message || "Invalid key or permissions missing."}`; resDiv.className = "text-[10px] text-red-400 mt-1";
+          resDiv.textContent = `❌ ${data.error?.message || "Invalid key"}`; resDiv.className = "text-[10px] text-red-400 mt-1";
         }
       } catch (e) {
         resDiv.textContent = `❌ Network Error: ${e.message}`; resDiv.className = "text-[10px] text-red-400 mt-1";
@@ -380,7 +373,6 @@
       const resDiv = document.getElementById('orTestResult');
       resDiv.classList.remove('hidden');
       if (!key) { resDiv.textContent = "❌ Enter a key first."; resDiv.className = "text-[10px] text-red-400 mt-1"; return; }
-      
       resDiv.textContent = "⏳ Testing key..."; resDiv.className = "text-[10px] text-zinc-400 mt-1";
       try {
         const res = await fetch("https://openrouter.ai/api/v1/auth/key", { headers: { "Authorization": `Bearer ${key}` } });
@@ -395,8 +387,7 @@
       }
     };
 
-    // Chat UI
-    function appendChat(sender, msg) {
+    function appendChat(sender, msg, isSpecial = false) {
       const container = document.getElementById('chatFeed');
       const div = document.createElement('div');
       div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'}`;
@@ -405,51 +396,108 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    function extractHTML(str) {
-      if (!str) return '';
-      let clean = str.trim();
-      if (clean.includes('</think>')) clean = clean.split('</think>')[1].trim();
-      if (clean.includes("```html")) clean = clean.split("```html")[1].split("```")[0];
-      else if (clean.includes("```")) clean = clean.split("```")[1].split("```")[0];
-      return clean.trim();
+    // --- AGENTIC IDE CONTROL PARSER ---
+    // This allows AI to output <file name="x"> and <delete name="y"> commands
+    function processAIActions(text) {
+      let actionsApplied = 0;
+      
+      // Look for deletions: <delete name="old.js" />
+      const deleteRegex = /<delete\s+name="([^"]+)"\s*\/>/g;
+      let match;
+      while ((match = deleteRegex.exec(text)) !== null) {
+        const fileName = match[1];
+        if (projectFiles[fileName]) {
+          delete projectFiles[fileName];
+          actionsApplied++;
+          appendChat("IDE Engine", `🗑️ Deleted ${fileName}`);
+        }
+      }
+
+      // Look for file creations/updates: <file name="index.html">...</file>
+      const fileRegex = /<file\s+name="([^"]+)">([\s\S]*?)<\/file>/g;
+      while ((match = fileRegex.exec(text)) !== null) {
+        const fileName = match[1];
+        const content = match[2].trim();
+        projectFiles[fileName] = content;
+        actionsApplied++;
+        appendChat("IDE Engine", `📄 Saved ${fileName}`);
+        activeFileName = fileName; // Auto-focus the last edited file
+      }
+
+      // Fallback for models that ignore instructions and just output ```html
+      if (actionsApplied === 0) {
+        let clean = text.trim();
+        if (clean.includes('</think>')) clean = clean.split('</think>')[1].trim();
+        if (clean.includes("```html")) clean = clean.split("```html")[1].split("```")[0];
+        else if (clean.includes("```")) clean = clean.split("```")[1].split("```")[0];
+        
+        if (clean.length > 30) {
+          projectFiles[activeFileName] = clean.trim();
+          appendChat("IDE Engine", `📄 Updated ${activeFileName}`);
+          actionsApplied++;
+        }
+      }
+
+      if (actionsApplied > 0) {
+        if (!projectFiles[activeFileName]) activeFileName = Object.keys(projectFiles)[0] || "index.html";
+        switchFile(activeFileName);
+      } else {
+        throw new Error("AI did not return any valid file actions or code.");
+      }
     }
 
-    // --- AI ENGINES ---
+    const SYSTEM_PROMPT = `You are an expert AI developer controlling a multi-file IDE.
+To create or update files, use this EXACT XML format:
+<file name="index.html">
+...html code...
+</file>
+<file name="style.css">
+...css code...
+</file>
 
+To delete a file, use:
+<delete name="obsolete.js" />
+
+Always provide the FULL updated file content inside the tags. Do not use markdown blocks outside the file tags.`;
+
+    // --- AI ENGINES ---
     async function generateZeroKey(promptText) {
-      const prompt = `Create a single-file HTML app for: "${promptText}". Output ONLY executable HTML.`;
-      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai`);
+      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(SYSTEM_PROMPT + "\n\nUser: " + promptText)}?model=openai`);
       if (!res.ok) throw new Error("Zero-Key server busy.");
-      return extractHTML(await res.text());
+      processAIActions(await res.text());
     }
 
     async function generateGemini(key, promptText) {
       const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
-      const body = JSON.stringify({ contents: [{ parts: [{ text: `Create a complete HTML app for: "${promptText}". Return code inside \`\`\`html\`\`\`.` }] }] });
+      const body = JSON.stringify({ contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nTask: ${promptText}` }] }] });
       
-      // Specifically querying gemini-3.5-flash-lite as requested!
       const models = ['gemini-3.5-flash-lite', 'gemini-3.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash'];
       for (const m of models) {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers, body });
         const data = await res.json();
         
         if (!res.ok) {
-          if (data.error && data.error.code === 404) continue; // Try next model if 404
+          if (data.error && data.error.code === 404) continue;
           throw new Error(`Google API Error: ${data.error?.message || res.statusText}`);
         }
         
-        const code = extractHTML(data.candidates?.[0]?.content?.parts?.[0]?.text);
-        if (code && code.length > 50) return code;
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          processAIActions(text);
+          return;
+        }
       }
       throw new Error("All Gemini models returned empty responses or 404s.");
     }
 
     async function generateOpenRouter(key, promptText) {
-      // Robust free model array. If one is paid/offline, it auto-skips to the next!
+      // Robust free models. If one is paid/offline, we catch the error and skip!
       const models = [
-        "meta-llama/llama-3.1-8b-instruct:free", 
-        "google/gemini-2.0-flash-exp:free",
-        "mistralai/mistral-small-24b-instruct-2501:free"
+        "meta-llama/llama-3.2-3b-instruct:free",
+        "mistralai/mistral-nemo:free",
+        "google/gemini-2.5-flash:free",
+        "microsoft/phi-3-mini-128k-instruct:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free" // Kept just in case it rotates back to free
       ];
       
       for (const m of models) {
@@ -463,39 +511,39 @@
           },
           body: JSON.stringify({
             model: m,
-            messages: [{ role: "user", content: `Create a single HTML file for: "${promptText}". Output code inside \`\`\`html\`\`\`.` }]
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: promptText }
+            ]
           })
         });
 
         const data = await res.json();
         
-        // AGGRESSIVE FALLBACK: If it says "paid" or throws an error, just skip and try the next one!
+        // AGGRESSIVE FALLBACK: Catch ANY API Error (404, paid, offline, rate limit)
         if (!res.ok) {
-          if (data.error && (data.error.message.includes("unavailable for free") || data.error.message.includes("does not exist"))) {
-            appendChat("OpenRouter Notice", `Model ${m} is paid/offline. Trying next...`);
-            continue; 
-          }
-          throw new Error(`OpenRouter Error: ${data.error?.message || res.statusText}`);
+          appendChat("OpenRouter Notice", `Model ${m} failed/paid. Trying next...`);
+          continue; 
         }
 
-        const code = extractHTML(data.choices?.[0]?.message?.content);
-        if (code && code.length > 50) return code;
+        const text = data.choices?.[0]?.message?.content;
+        if (text) {
+          processAIActions(text);
+          return;
+        }
       }
-      throw new Error("OpenRouter models busy or unavailable.");
+      throw new Error("All OpenRouter free models are currently busy or unavailable.");
     }
 
     async function generateVenice(key, promptText) {
       const res = await fetch("https://api.venice.ai/api/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${key}`,
-          "Content-Type": "application/json"
-        },
+        headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "default", // Venice auto-routes to their best uncensored model
+          model: "default",
           messages: [
-            { role: "system", content: "You are an expert uncensored web developer. Output only raw HTML code inside ```html```." },
-            { role: "user", content: `Create a single HTML file for: "${promptText}".` }
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: promptText }
           ]
         })
       });
@@ -503,9 +551,12 @@
       const data = await res.json();
       if (!res.ok) throw new Error(`Venice API Error: ${data.error?.message || res.statusText}`);
       
-      const code = extractHTML(data.choices?.[0]?.message?.content);
-      if (code && code.length > 50) return code;
-      throw new Error("Venice.ai returned empty code.");
+      const text = data.choices?.[0]?.message?.content;
+      if (text) {
+        processAIActions(text);
+        return;
+      }
+      throw new Error("Venice.ai returned empty response.");
     }
 
     // --- SUBMIT HANDLER ---
@@ -518,7 +569,6 @@
       const vKey = document.getElementById('veniceKey').value.trim() || localStorage.getItem('nexus_venice_key');
 
       if (!prompt) return;
-
       appendChat("User", prompt);
       promptInput.value = "";
 
@@ -527,50 +577,40 @@
       statusBox.classList.remove('hidden');
       progressFill.style.width = '30%';
 
-      let finalCode = "";
-
       try {
         if (selectedEngine === "zerokey") {
           appendChat("System", "Generating via Zero-Key AI...");
-          finalCode = await generateZeroKey(prompt);
+          await generateZeroKey(prompt);
         } 
         else if (selectedEngine === "gemini") {
           if (!gKey) throw new Error("Gemini Key missing. Please add it in the Vault.");
           appendChat("System", "Generating via Google Gemini 3.5 Flash Lite...");
-          finalCode = await generateGemini(gKey, prompt);
+          await generateGemini(gKey, prompt);
         }
         else if (selectedEngine === "openrouter") {
           if (!oKey) throw new Error("OpenRouter Key missing. Please add it in the Vault.");
           appendChat("System", "Generating via OpenRouter Free Models...");
-          finalCode = await generateOpenRouter(oKey, prompt);
+          await generateOpenRouter(oKey, prompt);
         }
         else if (selectedEngine === "venice") {
           if (!vKey) throw new Error("Venice.ai Key missing. Please add it in the Vault.");
           appendChat("System", "Generating via Venice.ai (Uncensored)...");
-          finalCode = await generateVenice(vKey, prompt);
+          await generateVenice(vKey, prompt);
         }
         else if (selectedEngine === "auto") {
+          let success = false;
           if (gKey) {
-            try { appendChat("System", "Trying Gemini..."); finalCode = await generateGemini(gKey, prompt); } catch(e) { appendChat("Error", e.message); }
+            try { appendChat("System", "Trying Gemini..."); await generateGemini(gKey, prompt); success = true; } catch(e) { appendChat("Error", e.message); }
           }
-          if (!finalCode && oKey) {
-            try { appendChat("System", "Trying OpenRouter..."); finalCode = await generateOpenRouter(oKey, prompt); } catch(e) { appendChat("Error", e.message); }
+          if (!success && oKey) {
+            try { appendChat("System", "Trying OpenRouter..."); await generateOpenRouter(oKey, prompt); success = true; } catch(e) { appendChat("Error", e.message); }
           }
-          if (!finalCode) {
+          if (!success) {
             appendChat("System", "Trying Zero-Key Backup...");
-            finalCode = await generateZeroKey(prompt);
+            await generateZeroKey(prompt);
           }
         }
-
-        if (finalCode) {
-          projectFiles[activeFileName] = finalCode;
-          if (editor) editor.setValue(finalCode, -1);
-          refreshPreview();
-          appendChat("Success", "Code generated successfully!");
-        } else {
-          throw new Error("No code could be generated.");
-        }
-
+        appendChat("Success", "Workspace Updated!");
       } catch (err) {
         appendChat("Generation Failed", err.message);
       } finally {
