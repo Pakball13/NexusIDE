@@ -23,6 +23,7 @@
     ::-webkit-scrollbar-thumb { background: #424242; border-radius: 3px; }
     .copilot-gradient { background: linear-gradient(135deg, #7928ca 0%, #ff0080 100%); }
     #editorMount { width: 100%; height: 100%; font-size: 13px; }
+    .think-block { border-left: 2px solid #a855f7; padding-left: 10px; color: #94a3b8; font-style: italic; font-size: 10.5px; }
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col overflow-hidden select-none">
@@ -102,7 +103,7 @@
     </main>
 
     <!-- AI COPILOT PANEL -->
-    <aside class="w-96 bg-[#1e1e1e] flex flex-col border-l border-[#333333]">
+    <aside class="w-[420px] bg-[#1e1e1e] flex flex-col border-l border-[#333333]">
       <div class="p-3 bg-[#252526] border-b border-[#333333] flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div class="w-6 h-6 rounded-md copilot-gradient flex items-center justify-center text-white">
@@ -110,7 +111,7 @@
           </div>
           <div>
             <h2 class="text-xs font-bold text-white">Agentic Copilot</h2>
-            <p class="text-[10px] text-zinc-400">Gemini 3.5 / OpenRouter / Venice</p>
+            <p class="text-[10px] text-zinc-400">Context-Aware AI Architect</p>
           </div>
         </div>
       </div>
@@ -119,12 +120,12 @@
       <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
         <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
           <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="cpu" class="w-3.5 h-3.5 text-blue-400"></i> AI Workspace Control:
+            <i data-lucide="brain-circuit" class="w-3.5 h-3.5 text-blue-400"></i> AI Workspace Intelligence:
           </p>
           <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li><b>Agentic Files</b>: AI can now create, delete, and modify multiple files autonomously!</li>
-            <li><b>Try asking:</b> <i>"Create test.html with a blue button and style.css for the theme."</i></li>
-            <li><b>Bulletproof Routing</b>: OpenRouter catches <b>any</b> error and jumps to the next free model.</li>
+            <li><b>Context Aware</b>: The AI reads all files in your Explorer before writing code.</li>
+            <li><b>Chain of Thought</b>: The AI thinks through problems before modifying files.</li>
+            <li><b>Smart Bundler</b>: Multiple files are now correctly linked and parsed.</li>
           </ul>
         </div>
       </div>
@@ -132,8 +133,8 @@
       <!-- AI Status Bar -->
       <div id="councilStatusBox" class="hidden p-3 bg-[#181818] border-t border-[#333333]">
         <div class="flex justify-between items-center mb-1.5 text-[11px]">
-          <span class="text-purple-300 font-medium" id="councilStatusText">Generating...</span>
-          <span class="text-zinc-400" id="councilCounter">Stage 1</span>
+          <span class="text-purple-300 font-medium" id="councilStatusText">Reading Workspace...</span>
+          <span class="text-zinc-400" id="councilCounter">Active</span>
         </div>
         <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
           <div id="councilProgressFill" class="bg-gradient-to-r from-purple-500 to-pink-500 h-full w-0 transition-all duration-300"></div>
@@ -144,16 +145,17 @@
       <div class="p-3 bg-[#252526] border-t border-[#333333] space-y-2">
         <div class="flex items-center justify-between text-[11px]">
           <span class="text-zinc-400">Engine:</span>
-          <select id="engineSelector" class="bg-[#1e1e1e] border border-[#3c3c3c] text-purple-300 text-[11px] rounded px-2 py-0.5 outline-none font-medium">
-            <option value="gemini" selected>🟣 Gemini 3.5 Flash Lite</option>
-            <option value="openrouter">🔵 OpenRouter Free Pool</option>
+          <select id="engineSelector" class="bg-[#1e1e1e] border border-[#3c3c3c] text-purple-300 text-[11px] rounded px-2 py-0.5 outline-none font-medium max-w-[200px] truncate">
+            <option value="auto" selected>⚡ Auto-Failover (Best Availability)</option>
+            <option value="openrouter">🔵 OpenRouter (Nemotron, Llama 3.1 70B, Qwen)</option>
+            <option value="gemini">🟣 Google Gemini 3.5 Flash Lite</option>
             <option value="venice">🔴 Venice.ai (Uncensored)</option>
             <option value="zerokey">🟢 Zero-Key Backup AI</option>
           </select>
         </div>
 
         <div class="relative">
-          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Create test.html with a red background')..."
+          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build or modify? (e.g. 'Make style.css link properly to test.html and turn it into a calculator')..."
             class="w-full bg-[#1e1e1e] text-zinc-200 border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-xs resize-none outline-none focus:ring-1 focus:ring-purple-500"></textarea>
           <button id="submitPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-lg">
             <span>Generate</span>
@@ -323,14 +325,23 @@
       refreshPreview();
     }
 
+    // SMART BUNDLER: Replaces `<link>` and `<script src="">` dynamically with local workspace files
     function refreshPreview() {
-      // If the user is on an HTML file, preview THAT file. Otherwise default to index.html
-      let targetHtml = activeFileName.endsWith('.html') ? activeFileName : "index.html";
-      let html = projectFiles[targetHtml] || Object.values(projectFiles).find(c => c.includes('<html')) || "";
-      
-      // Auto-inject CSS and JS globally for rapid prototyping
-      if (projectFiles["style.css"]) html = html.replace('</head>', `<style>\n${projectFiles["style.css"]}\n</style></head>`);
-      if (projectFiles["script.js"]) html = html.replace('</body>', `<script>\n${projectFiles["script.js"]}\n<\/script></body>`);
+      let targetHtml = activeFileName.endsWith('.html') ? activeFileName : Object.keys(projectFiles).find(f => f.endsWith('.html')) || "index.html";
+      let html = projectFiles[targetHtml] || "";
+
+      // Intercept explicit <link rel="stylesheet" href="...">
+      html = html.replace(/<link\s+[^>]*href=["']([^"']+)["'][^>]*>/gi, (match, fileName) => {
+        if (projectFiles[fileName]) return `<style>\n/* Injected ${fileName} */\n${projectFiles[fileName]}\n</style>`;
+        return match;
+      });
+
+      // Intercept explicit <script src="...">
+      html = html.replace(/<script\s+[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi, (match, fileName) => {
+        if (projectFiles[fileName]) return `<script>\n/* Injected ${fileName} */\n${projectFiles[fileName]}\n<\/script>`;
+        return match;
+      });
+
       document.getElementById('previewFrame').srcdoc = html;
     }
 
@@ -348,60 +359,33 @@
       appendChat("System", "API Keys saved.");
     };
 
-    // --- KEY TESTERS ---
-    document.getElementById('testGeminiBtn').onclick = async () => {
-      const key = document.getElementById('geminiKey').value.trim();
-      const resDiv = document.getElementById('geminiTestResult');
-      resDiv.classList.remove('hidden');
-      if (!key) { resDiv.textContent = "❌ Enter a key first."; resDiv.className = "text-[10px] text-red-400 mt-1"; return; }
-      resDiv.textContent = "⏳ Testing key..."; resDiv.className = "text-[10px] text-zinc-400 mt-1";
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-        const data = await res.json();
-        if (res.ok) {
-          resDiv.textContent = "✅ Key is valid and active!"; resDiv.className = "text-[10px] text-green-400 mt-1";
-        } else {
-          resDiv.textContent = `❌ ${data.error?.message || "Invalid key"}`; resDiv.className = "text-[10px] text-red-400 mt-1";
-        }
-      } catch (e) {
-        resDiv.textContent = `❌ Network Error: ${e.message}`; resDiv.className = "text-[10px] text-red-400 mt-1";
-      }
-    };
-
-    document.getElementById('testORBtn').onclick = async () => {
-      const key = document.getElementById('openRouterKey').value.trim();
-      const resDiv = document.getElementById('orTestResult');
-      resDiv.classList.remove('hidden');
-      if (!key) { resDiv.textContent = "❌ Enter a key first."; resDiv.className = "text-[10px] text-red-400 mt-1"; return; }
-      resDiv.textContent = "⏳ Testing key..."; resDiv.className = "text-[10px] text-zinc-400 mt-1";
-      try {
-        const res = await fetch("https://openrouter.ai/api/v1/auth/key", { headers: { "Authorization": `Bearer ${key}` } });
-        const data = await res.json();
-        if (res.ok) {
-          resDiv.textContent = `✅ Valid Key! Limit: ${data.data?.limit || 'Unlimited'}`; resDiv.className = "text-[10px] text-green-400 mt-1";
-        } else {
-          resDiv.textContent = `❌ ${data.error?.message || "Invalid key"}`; resDiv.className = "text-[10px] text-red-400 mt-1";
-        }
-      } catch (e) {
-        resDiv.textContent = `❌ Network Error: ${e.message}`; resDiv.className = "text-[10px] text-red-400 mt-1";
-      }
-    };
-
-    function appendChat(sender, msg, isSpecial = false) {
+    function appendChat(sender, msg, isThinking = false) {
       const container = document.getElementById('chatFeed');
       const div = document.createElement('div');
-      div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'}`;
-      div.innerHTML = `<div class="font-bold text-[11px] mb-1 ${sender.includes('Venice') ? 'text-red-400' : 'text-purple-400'}">${sender}</div><div class="break-words">${msg}</div>`;
+      
+      if (isThinking) {
+        div.className = `p-2.5 rounded-lg bg-[#252526] border border-[#383838]`;
+        div.innerHTML = `<div class="font-bold text-[11px] mb-1 text-purple-400">🧠 ${sender} thought process:</div><div class="think-block">${msg.replace(/\n/g, '<br>')}</div>`;
+      } else {
+        div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'}`;
+        div.innerHTML = `<div class="font-bold text-[11px] mb-1 ${sender.includes('Venice') ? 'text-red-400' : 'text-purple-400'}">${sender}</div><div class="break-words">${msg.replace(/\n/g, '<br>')}</div>`;
+      }
+      
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }
 
     // --- AGENTIC IDE CONTROL PARSER ---
-    // This allows AI to output <file name="x"> and <delete name="y"> commands
     function processAIActions(text) {
       let actionsApplied = 0;
       
-      // Look for deletions: <delete name="old.js" />
+      // Parse Copilot Chain of Thought
+      const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/);
+      if (thinkMatch) {
+        appendChat("Copilot", thinkMatch[1].trim(), true);
+      }
+      
+      // Parse file deletions
       const deleteRegex = /<delete\s+name="([^"]+)"\s*\/>/g;
       let match;
       while ((match = deleteRegex.exec(text)) !== null) {
@@ -413,25 +397,27 @@
         }
       }
 
-      // Look for file creations/updates: <file name="index.html">...</file>
+      // Parse file creation/modification
       const fileRegex = /<file\s+name="([^"]+)">([\s\S]*?)<\/file>/g;
       while ((match = fileRegex.exec(text)) !== null) {
         const fileName = match[1];
         const content = match[2].trim();
         projectFiles[fileName] = content;
         actionsApplied++;
-        appendChat("IDE Engine", `📄 Saved ${fileName}`);
-        activeFileName = fileName; // Auto-focus the last edited file
+        appendChat("IDE Engine", `📄 Updated ${fileName}`);
+        activeFileName = fileName;
       }
 
-      // Fallback for models that ignore instructions and just output ```html
+      // Fallback for non-compliant models that just output a markdown block
       if (actionsApplied === 0) {
         let clean = text.trim();
         if (clean.includes('</think>')) clean = clean.split('</think>')[1].trim();
         if (clean.includes("```html")) clean = clean.split("```html")[1].split("```")[0];
+        else if (clean.includes("```css")) clean = clean.split("```css")[1].split("```")[0];
+        else if (clean.includes("```js")) clean = clean.split("```js")[1].split("```")[0];
         else if (clean.includes("```")) clean = clean.split("```")[1].split("```")[0];
         
-        if (clean.length > 30) {
+        if (clean.length > 20) {
           projectFiles[activeFileName] = clean.trim();
           appendChat("IDE Engine", `📄 Updated ${activeFileName}`);
           actionsApplied++;
@@ -442,97 +428,121 @@
         if (!projectFiles[activeFileName]) activeFileName = Object.keys(projectFiles)[0] || "index.html";
         switchFile(activeFileName);
       } else {
-        throw new Error("AI did not return any valid file actions or code.");
+        throw new Error("AI did not return any valid code or commands.");
       }
     }
 
-    const SYSTEM_PROMPT = `You are an expert AI developer controlling a multi-file IDE.
-To create or update files, use this EXACT XML format:
-<file name="index.html">
-...html code...
+    // Gathers all current files and injects them into the AI's prompt so it knows context
+    function getWorkspaceContext() {
+      let ctx = "CURRENT WORKSPACE FILES:\n";
+      for (const [name, content] of Object.entries(projectFiles)) {
+        ctx += `\n--- ${name} ---\n${content}\n`;
+      }
+      return ctx;
+    }
+
+    const SYSTEM_PROMPT = `You are an elite AI architect integrated directly into an IDE.
+You have access to the user's current files. 
+1. First, think through your plan step-by-step using <think>...</think> tags. Outline what needs to change.
+2. Next, apply your code using EXACTLY these XML tags:
+
+To create or modify a file:
+<file name="test.html">
+<!DOCTYPE html>
+<html>...
 </file>
 <file name="style.css">
-...css code...
+body { background: black; }
 </file>
 
-To delete a file, use:
+To delete a file:
 <delete name="obsolete.js" />
 
-Always provide the FULL updated file content inside the tags. Do not use markdown blocks outside the file tags.`;
+CRITICAL: Return full file content. Never use conversational text outside the tags. If the user asks for HTML + CSS, create TWO separate <file> tags and explicitly link them in the HTML (<link rel="stylesheet" href="style.css">).`;
 
     // --- AI ENGINES ---
     async function generateZeroKey(promptText) {
-      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(SYSTEM_PROMPT + "\n\nUser: " + promptText)}?model=openai`);
+      const fullPrompt = `${SYSTEM_PROMPT}\n\n${getWorkspaceContext()}\n\nUser Request: ${promptText}`;
+      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}?model=openai`);
       if (!res.ok) throw new Error("Zero-Key server busy.");
       processAIActions(await res.text());
     }
 
     async function generateGemini(key, promptText) {
       const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
-      const body = JSON.stringify({ contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nTask: ${promptText}` }] }] });
+      const body = JSON.stringify({ contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${getWorkspaceContext()}\n\nUser Request: ${promptText}` }] }] });
       
-      const models = ['gemini-3.5-flash-lite', 'gemini-3.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash'];
+      const models = ['gemini-3.5-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash-exp'];
       for (const m of models) {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers, body });
-        const data = await res.json();
-        
-        if (!res.ok) {
-          if (data.error && data.error.code === 404) continue;
-          throw new Error(`Google API Error: ${data.error?.message || res.statusText}`);
-        }
-        
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          processAIActions(text);
-          return;
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers, body });
+          const data = await res.json();
+          
+          if (!res.ok) {
+            appendChat("Gemini Error Log", `${m} failed: ${data.error?.message || res.statusText}. Trying next...`);
+            continue; 
+          }
+          
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            processAIActions(text);
+            return;
+          }
+        } catch(e) {
+           appendChat("Gemini Network Error", e.message);
         }
       }
-      throw new Error("All Gemini models returned empty responses or 404s.");
+      throw new Error("All Gemini models failed (See logs above).");
     }
 
     async function generateOpenRouter(key, promptText) {
-      // Robust free models. If one is paid/offline, we catch the error and skip!
+      // 2026 requested models!
       const models = [
-        "meta-llama/llama-3.2-3b-instruct:free",
-        "mistralai/mistral-nemo:free",
-        "google/gemini-2.5-flash:free",
-        "microsoft/phi-3-mini-128k-instruct:free",
-        "qwen/qwen-2.5-coder-32b-instruct:free" // Kept just in case it rotates back to free
+        "openrouter/free", // Built-in fallback
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "poolside/laguna-s-2.1:free",
+        "nvidia/nemotron-3.5-super-vl:free",
+        "meta-llama/llama-3.1-70b-instruct:free",
+        "qwen/qwen-2.5-72b-instruct:free"
       ];
       
       for (const m of models) {
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${key}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": window.location.href,
-            "X-Title": "NexusIDE"
-          },
-          body: JSON.stringify({
-            model: m,
-            messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              { role: "user", content: promptText }
-            ]
-          })
-        });
+        try {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${key}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": window.location.href,
+              "X-Title": "NexusIDE"
+            },
+            body: JSON.stringify({
+              model: m,
+              messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: `${getWorkspaceContext()}\n\nUser Request: ${promptText}` }
+              ]
+            })
+          });
 
-        const data = await res.json();
-        
-        // AGGRESSIVE FALLBACK: Catch ANY API Error (404, paid, offline, rate limit)
-        if (!res.ok) {
-          appendChat("OpenRouter Notice", `Model ${m} failed/paid. Trying next...`);
-          continue; 
-        }
+          const data = await res.json();
+          
+          if (!res.ok) {
+            // Logs out exactly why a model failed before seamlessly jumping to the next
+            appendChat("OpenRouter Fallback", `Model ${m} skipped: ${data.error?.message || 'Offline'}`);
+            continue; 
+          }
 
-        const text = data.choices?.[0]?.message?.content;
-        if (text) {
-          processAIActions(text);
-          return;
+          const text = data.choices?.[0]?.message?.content;
+          if (text) {
+            processAIActions(text);
+            return;
+          }
+        } catch(e) {
+          appendChat("OpenRouter Network Error", e.message);
         }
       }
-      throw new Error("All OpenRouter free models are currently busy or unavailable.");
+      throw new Error("All requested OpenRouter free models are currently offline or busy.");
     }
 
     async function generateVenice(key, promptText) {
@@ -543,11 +553,10 @@ Always provide the FULL updated file content inside the tags. Do not use markdow
           model: "default",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: promptText }
+            { role: "user", content: `${getWorkspaceContext()}\n\nUser Request: ${promptText}` }
           ]
         })
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(`Venice API Error: ${data.error?.message || res.statusText}`);
       
@@ -583,17 +592,17 @@ Always provide the FULL updated file content inside the tags. Do not use markdow
           await generateZeroKey(prompt);
         } 
         else if (selectedEngine === "gemini") {
-          if (!gKey) throw new Error("Gemini Key missing. Please add it in the Vault.");
-          appendChat("System", "Generating via Google Gemini 3.5 Flash Lite...");
+          if (!gKey) throw new Error("Gemini Key missing. Add it in the Vault.");
+          appendChat("System", "Generating via Google Gemini Engine...");
           await generateGemini(gKey, prompt);
         }
         else if (selectedEngine === "openrouter") {
-          if (!oKey) throw new Error("OpenRouter Key missing. Please add it in the Vault.");
-          appendChat("System", "Generating via OpenRouter Free Models...");
+          if (!oKey) throw new Error("OpenRouter Key missing. Add it in the Vault.");
+          appendChat("System", "Generating via OpenRouter Multi-Model Pool...");
           await generateOpenRouter(oKey, prompt);
         }
         else if (selectedEngine === "venice") {
-          if (!vKey) throw new Error("Venice.ai Key missing. Please add it in the Vault.");
+          if (!vKey) throw new Error("Venice.ai Key missing. Add it in the Vault.");
           appendChat("System", "Generating via Venice.ai (Uncensored)...");
           await generateVenice(vKey, prompt);
         }
@@ -610,7 +619,6 @@ Always provide the FULL updated file content inside the tags. Do not use markdow
             await generateZeroKey(prompt);
           }
         }
-        appendChat("Success", "Workspace Updated!");
       } catch (err) {
         appendChat("Generation Failed", err.message);
       } finally {
