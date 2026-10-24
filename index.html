@@ -5,27 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NexusIDE — Multi-AI HTML Studio</title>
 
-  <!-- Suppress Tailwind CDN production warning -->
-  <script>
-    const _origWarn = console.warn;
-    console.warn = (...args) => {
-      if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
-      _origWarn.apply(console, args);
-    };
-  </script>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Firebase SDK -->
+  <!-- Robust Ace Code Editor (Never blocked by CORS/Workers) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+
+  <!-- Optional Firebase SDK (Wrapped safely) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-  <!-- Monaco Editor -->
-  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
 
   <style>
     body { background-color: #181818; color: #cccccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -35,6 +26,7 @@
     .copilot-gradient { background: linear-gradient(135deg, #7928ca 0%, #ff0080 100%); }
     .pulse-dot { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+    #editorMount { width: 100%; height: 100%; font-size: 13px; }
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col overflow-hidden select-none">
@@ -49,7 +41,7 @@
       <span class="text-zinc-600">|</span>
       <span class="text-zinc-400 font-mono">index.html</span>
       <span id="syncIndicator" class="text-[10px] text-zinc-500 italic flex items-center gap-1">
-        <span class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span> Local only
+        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Ready
       </span>
     </div>
 
@@ -59,7 +51,7 @@
         <span id="authBtnLabel">Sign In (Save Keys)</span>
       </button>
 
-      <button id="runBtn" class="flex items-center gap-1.5 bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded transition">
+      <button id="runBtn" class="flex items-center gap-1.5 bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded transition font-medium">
         <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Run
       </button>
 
@@ -76,25 +68,31 @@
   <!-- MAIN WORKSPACE -->
   <div class="flex-1 flex overflow-hidden">
     
-    <!-- LEFT: MONACO EDITOR + LIVE PREVIEW -->
+    <!-- LEFT: EDITOR & PREVIEW SPLIT -->
     <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-      <div class="flex-1 flex flex-col border-r border-[#333333] relative">
-        <div class="h-8 bg-[#1e1e1e] flex items-center px-3 border-b border-[#2d2d2d] justify-between text-xs text-zinc-400">
+      <!-- Editor Panel -->
+      <div class="flex-1 flex flex-col border-r border-[#333333] relative bg-[#1e1e1e]">
+        <div class="h-8 bg-[#252526] flex items-center px-3 border-b border-[#2d2d2d] justify-between text-xs text-zinc-400">
           <span class="flex items-center gap-1.5 font-mono"><i data-lucide="file-code" class="w-3.5 h-3.5 text-amber-400"></i> editor.html</span>
-          <span id="activeModelLabel" class="text-[10px] text-zinc-500">Ready</span>
+          <span id="activeModelLabel" class="text-[10px] text-zinc-400">VS Code Dark Engine</span>
         </div>
-        <div id="monacoMount" class="flex-1 w-full"></div>
+        <!-- Editor Mount with Native Fallback -->
+        <div class="flex-1 relative w-full h-full">
+          <div id="editorMount"></div>
+          <textarea id="nativeFallbackEditor" class="hidden w-full h-full bg-[#1e1e1e] text-zinc-200 p-3 font-mono text-xs outline-none resize-none"></textarea>
+        </div>
       </div>
 
+      <!-- Live Sandbox Preview -->
       <div class="flex-1 flex flex-col bg-white">
         <div class="h-8 bg-[#252526] flex items-center justify-between px-3 border-b border-[#333333] text-xs text-zinc-300">
           <div class="flex items-center gap-2">
             <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
             <span>Preview Engine</span>
           </div>
-          <button id="refreshBtn" title="Reload Frame" class="hover:text-white"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
+          <button id="refreshBtn" title="Reload Frame" class="hover:text-white p-1"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
         </div>
-        <iframe id="previewFrame" class="flex-1 w-full h-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
+        <iframe id="previewFrame" class="flex-1 w-full h-full border-none bg-white"></iframe>
       </div>
     </main>
 
@@ -107,23 +105,24 @@
           </div>
           <div>
             <h2 class="text-xs font-bold text-white">Copilot Council</h2>
-            <p class="text-[10px] text-zinc-400">Gemini / DeepSeek R1 + 10 Free AIs</p>
+            <p class="text-[10px] text-zinc-400">DeepSeek R1 / Gemini + 10 Free AIs</p>
           </div>
         </div>
         <span class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800">
-          Auto-Failover
+          Ready
         </span>
       </div>
 
+      <!-- Chat Feed -->
       <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
         <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
           <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="info" class="w-3.5 h-3.5 text-purple-400"></i> Dual-Engine Resilience:
+            <i data-lucide="info" class="w-3.5 h-3.5 text-purple-400"></i> How to use:
           </p>
           <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li>Attempts <b>Gemini 2.x</b> first.</li>
-            <li>If Gemini key has permission limits, auto-switches to <b>DeepSeek R1</b>.</li>
-            <li>Audited by a committee of 10 free AI models in parallel.</li>
+            <li>Click <b>Vault / Keys</b> at the top right to paste your free OpenRouter or Gemini key.</li>
+            <li>Type what you want to build below and click <b>Generate</b>.</li>
+            <li>DeepSeek R1 / Gemini will draft your code, followed by a multi-model council audit.</li>
           </ul>
         </div>
       </div>
@@ -143,7 +142,7 @@
       <!-- Prompt Input -->
       <div class="p-3 bg-[#252526] border-t border-[#333333]">
         <div class="relative">
-          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Build a clicker game with upgrades, auto-clickers, and animations')..."
+          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Build a complete Cookie Clicker game with upgrades, sound effects, and animations')..."
             class="w-full bg-[#1e1e1e] text-zinc-200 border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-xs resize-none outline-none focus:ring-1 focus:ring-purple-500"></textarea>
           <button id="submitPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-lg">
             <span>Generate</span>
@@ -167,8 +166,8 @@
 
       <div class="my-3 p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] flex items-center justify-between">
         <div>
-          <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Current Session</span>
-          <span id="userSessionLabel" class="text-white font-medium">Guest (Local storage only)</span>
+          <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Session Mode</span>
+          <span id="userSessionLabel" class="text-white font-medium">Local Browser Vault</span>
         </div>
         <div class="flex gap-2">
           <button id="guestSignInBtn" class="bg-zinc-700 hover:bg-zinc-600 text-white px-2.5 py-1 rounded transition text-[11px]">1-Click Guest</button>
@@ -180,849 +179,211 @@
 
       <div class="space-y-3">
         <div>
-          <label class="block font-semibold text-white mb-1">Google Gemini API Key (Optional with fallback)</label>
-          <input type="password" id="geminiKey" placeholder="Paste your key here..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
-          <p class="text-[10px] text-zinc-500 mt-0.5">Free from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 underline">Google AI Studio</a>.</p>
+          <label class="block font-semibold text-white mb-1">OpenRouter API Key (Recommended for DeepSeek R1 & Council)</label>
+          <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
+          <p class="text-[10px] text-zinc-500 mt-0.5">Free from <a href="https://openrouter.ai/keys" target="_blank" class="text-purple-400 underline">OpenRouter</a> ($0 balance works on all :free models).</p>
         </div>
 
         <div>
-          <label class="block font-semibold text-white mb-1">OpenRouter API Key (For DeepSeek R1 & Council)</label>
-          <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
-          <p class="text-[10px] text-zinc-500 mt-0.5">Free access on <a href="https://openrouter.ai/keys" target="_blank" class="text-purple-400 underline">OpenRouter</a> ($0 balance works on :free models).</p>
+          <label class="block font-semibold text-white mb-1">Google Gemini API Key (Optional)</label>
+          <input type="password" id="geminiKey" placeholder="AIza... or AQ..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
+          <p class="text-[10px] text-zinc-500 mt-0.5">Free from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 underline">Google AI Studio</a>.</p>
         </div>
       </div>
 
       <div class="mt-4 pt-3 border-t border-[#3c3c3c] flex items-center justify-between">
         <span class="text-[10px] text-zinc-500 flex items-center gap-1">
-          <i data-lucide="shield" class="w-3 h-3 text-green-400"></i> Cloud Synced
+          <i data-lucide="shield" class="w-3 h-3 text-green-400"></i> Stored safely on your device
         </span>
-        <button id="saveVaultBtn" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded font-medium">Save to Vault</button>
+        <button id="saveVaultBtn" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded font-medium">Save & Apply</button>
       </div>
 
     </div>
   </div>
 
-  <!-- Monaco Editor loader -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
-
   <script>
-    lucide.createIcons();
+    // Initialize icons safely
+    try { lucide.createIcons(); } catch(e) {}
 
-    // 100% FREE ACTIVE MODELS ON OPENROUTER
-    const FREE_COUNCIL_MODELS = [
-      { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1" },
-      { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B" },
-      { id: "qwen/qwen-2.5-coder-32b-instruct:free", name: "Qwen 2.5 Coder" },
-      { id: "mistralai/mistral-small-24b-instruct-2501:free", name: "Mistral Small 24B" },
-      { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash" },
-      { id: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Hermes 405B" },
-      { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B" },
-      { id: "deepseek/deepseek-chat:free", name: "DeepSeek V3" },
-      { id: "google/gemini-2.0-pro-exp-02-05:free", name: "Gemini 2.0 Pro" },
-      { id: "cognitivecomputations/dolphin3.0-r1-mistral-24b:free", name: "Dolphin R1 Mistral" }
-    ];
-
-    let monacoEditor = null;
-    let currentUser = null;
-    let db = null;
-    let auth = null;
-
-    // Load Monaco
-    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
-    require(['vs/editor/editor.main'], function () {
-      monacoEditor = monaco.editor.create(document.getElementById('monacoMount'), {
-        value: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { margin:0; height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; color:#f8fafc; font-family:sans-serif; text-align:center; }
-    h1 { background:linear-gradient(to right, #c084fc, #38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  </style>
-</head>
-<body>
-  <div>
-    <h1>NexusIDE Ready</h1>
-    <p>Describe your app in Copilot to build with Gemini / DeepSeek R1 & Council</p>
-  </div>
-</body>
-</html>`,
-        language: 'html',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        fontSize: 13,
-        minimap: { enabled: true },
-        wordWrap: 'on'
-      });
-
-      monacoEditor.onDidChangeModelContent(refreshPreview);
-      refreshPreview();
-    });
-
-    function refreshPreview() {
-      if (!monacoEditor) return;
-      const blob = new Blob([monacoEditor.getValue()], { type: 'text/html' });
-      document.getElementById('previewFrame').src = URL.createObjectURL(blob);
-    }
-
-    document.getElementById('runBtn').onclick = refreshPreview;
-    document.getElementById('refreshBtn').onclick = refreshPreview;
-
-    document.getElementById('downloadBtn').onclick = () => {
-      const blob = new Blob([monacoEditor.getValue()], { type: "text/html" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "index.html";
-      a.click();
-    };
-
-    // Firebase Init
-    function initFirebase() {
-      try {
-        const config = {
-          apiKey: "AIzaSyDemo-Project-For-Static-IDE",
-          authDomain: "nexus-free-ide.firebaseapp.com",
-          projectId: "nexus-free-ide"
-        };
-        if (!firebase.apps.length) firebase.initializeApp(config);
-        auth = firebase.auth();
-        db = firebase.firestore();
-
-        auth.onAuthStateChanged(async (user) => {
-          currentUser = user;
-          const userSessionLabel = document.getElementById('userSessionLabel');
-          const syncIndicator = document.getElementById('syncIndicator');
-          const authBtnLabel = document.getElementById('authBtnLabel');
-
-          if (user) {
-            userSessionLabel.textContent = user.isAnonymous ? `Guest (${user.uid.slice(0, 6)}...)` : (user.email || user.displayName);
-            authBtnLabel.textContent = user.isAnonymous ? "Guest Synced" : (user.displayName || "Connected");
-            syncIndicator.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Vault Active';
-
-            try {
-              const doc = await db.collection("users").doc(user.uid).get();
-              if (doc.exists) {
-                const data = doc.data();
-                if (data.geminiKey) document.getElementById('geminiKey').value = data.geminiKey;
-                if (data.openRouterKey) document.getElementById('openRouterKey').value = data.openRouterKey;
-              }
-            } catch(e) {}
-          } else {
-            document.getElementById('geminiKey').value = localStorage.getItem('nexus_gemini_key') || '';
-            document.getElementById('openRouterKey').value = localStorage.getItem('nexus_openrouter_key') || '';
-          }
-        });
-      } catch (e) {}
-    }
-
-    // Modal controls
-    const settingsModal = document.getElementById('settingsModal');
-    document.getElementById('openSettingsBtn').onclick = () => settingsModal.classList.remove('hidden');
-    document.getElementById('authBtn').onclick = () => settingsModal.classList.remove('hidden');
-    document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.add('hidden');
-
-    document.getElementById('guestSignInBtn').onclick = async () => {
-      if (auth) await auth.signInAnonymously();
-    };
-    document.getElementById('googleSignInBtn').onclick = async () => {
-      if (auth) await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    };
-
-    document.getElementById('saveVaultBtn').onclick = async () => {
-      const gKey = document.getElementById('geminiKey').value.trim();
-      const oKey = document.getElementById('openRouterKey').value.trim();
-
-      localStorage.setItem('nexus_gemini_key', gKey);
-      localStorage.setItem('nexus_openrouter_key', oKey);
-
-      if (currentUser && db) {
-        try {
-          await db.collection("users").doc(currentUser.uid).set({
-            geminiKey: gKey,
-            openRouterKey: oKey,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-        } catch (e) {}
-      }
-
-      settingsModal.classList.add('hidden');
-      appendChat("System", "Vault updated successfully.");
-    };
-
-    function appendChat(sender, msg, isSpecial = false) {
-      const container = document.getElementById('chatFeed');
-      const div = document.createElement('div');
-      div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${
-        isSpecial ? 'bg-purple-950/30 border-purple-800 text-purple-200' :
-        sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'
-      }`;
-      div.innerHTML = `
-        <div class="flex items-center gap-1.5 font-bold text-[11px] mb-1 ${
-          sender === 'Gemini' ? 'text-blue-400' : sender.includes('DeepSeek') ? 'text-cyan-400' : sender === 'Council' ? 'text-pink-400' : 'text-purple-400'
-        }">${sender}</div>
-        <div>${msg}</div>
-      `;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    // ROBUST HTML & CODE EXTRACTOR (Strips <think> tags from DeepSeek R1)
-    function extractHTML(str) {
-      if (!str) return '';
-      let clean = str.trim();
-
-      // Remove DeepSeek-R1 reasoning blocks (<think>...</think>)
-      if (clean.includes('</think>')) {
-        clean = clean.split('</think>')[1].trim();
-      }
-
-      // Check standard markdown ```html codeblocks
-      if (clean.includes("```html")) {
-        clean = clean.split("```html")[1].split("```")[0];
-      } else if (clean.includes("```")) {
-        clean = clean.split("```")[1].split("```")[0];
-      } else {
-        // Fallback: extract entire <html>...</html> or tag envelope if no markdown was returned
-        const firstTag = clean.indexOf('<');
-        const lastTag = clean.lastIndexOf('>');
-        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
-          clean = clean.substring(firstTag, lastTag + 1);
-        }
-      }
-      return clean.trim();
-    }
-
-    // GEMINI CALLER WITH MODEL SCAN
-    async function requestGemini(apiKey, promptText) {
-      const cleanKey = apiKey.trim();
-      const candidateModels = [
-        'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-1.5-flash-latest'
-      ];
-
-      const requestBody = JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }]
-      });
-
-      const headers = {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': cleanKey
-      };
-
-      for (const model of candidateModels) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
-          const res = await fetch(url, { method: 'POST', headers, body: requestBody });
-          if (res.status === 404) continue;
-
-          const data = await res.json();
-          if (data.error) throw new Error(data.error.message);
-
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          const extracted = extractHTML(text);
-          if (extracted && extracted.length > 30) {
-            document.getElementById('activeModelLabel').textContent = `Active: ${model}`;
-            return { code: extracted, modelName: model };
-          }
-        } catch (e) {
-          if (!e.message.includes('404')) throw e;
-        }
-      }
-
-      throw new Error("No active Gemini model found for this key.");
-    }
-
-    // DEEPSEEK R1 FALLBACK ENGINE
-    async function requestDeepSeekR1(openRouterKey, promptText) {
-      const modelsToTry = [
-        "deepseek/deepseek-r1:free",
-        "deepseek/deepseek-chat:free",
-        "qwen/qwen-2.5-coder-32b-instruct:free"
-      ];
-
-      for (const modelId of modelsToTry) {
-        try {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": window.location.href,
-              "X-Title": "NexusIDE"
-            },
-            body: JSON.stringify({
-              model: modelId,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an expert web developer. Output only a complete single-file HTML app with inline CSS (<style>) and JS (<script>). Do not explain."
-                },
-                {
-                  role: "user",
-                  content: `Create a single-file, production-ready HTML web app for: "${promptText}". Return code inside \`\`\`html\`\`\`.`
-                }
-              ]
-            })
-          });
-
-          const data = await res.json();
-          if (data.error) continue;
-
-          const raw = data.choices?.[0]?.message?.content;
-          const extracted = extractHTML(raw);
-
-          if (extracted && extracted.length > 40) {
-            document.getElementById('activeModelLabel').textContent = `Active: ${modelId}`;
-            return { code: extracted, modelName: modelId };
-          }
-        } catch (err) {}
-      }
-
-      throw new Error("DeepSeek R1 and OpenRouter fallback models could not be reached.");
-    }
-
-    // MULTI-AI PIPELINE
-    document.getElementById('submitPromptBtn').onclick = async () => {
-      const promptInput = document.getElementById('aiPromptInput');
-      const prompt = promptInput.value.trim();
-      const geminiKey = document.getElementById('geminiKey').value.trim() || localStorage.getItem('nexus_gemini_key');
-      const openRouterKey = document.getElementById('openRouterKey').value.trim() || localStorage.getItem('nexus_openrouter_key');
-
-      if (!prompt) return;
-      if (!geminiKey && !openRouterKey) {
-        alert("Please configure either your Gemini API Key or OpenRouter API Key in the Vault.");
-        settingsModal.classList.remove('hidden');
-        return;
-      }
-
-      appendChat("User", prompt);
-      promptInput.value = "";
-
-      const statusBox = document.getElementById('councilStatusBox');
-      const statusText = document.getElementById('councilStatusText');
-      const counter = document.getElementById('councilCounter');
-      const progressFill = document.getElementById('councilProgressFill');
-      const badgesContainer = document.getElementById('councilBadges');
-
-      statusBox.classList.remove('hidden');
-      badgesContainer.innerHTML = '';
-      progressFill.style.width = '15%';
-      statusText.textContent = "Step 1: Drafting Initial Architecture...";
-      counter.textContent = "Genesis";
-
-      let initialDraft = "";
-
-      // 1. Try Gemini
-      if (geminiKey) {
-        try {
-          appendChat("Gemini", "Contacting Google AI Studio...", true);
-          const result = await requestGemini(geminiKey, `Create a complete, single-file HTML app with modern CSS (<style>) and JS (<script>) for: "${prompt}". Return ONLY clean executable code inside \`\`\`html\`\`\`.`);
-          initialDraft = result.code;
-          appendChat("Gemini", `Initial build compiled via ${result.modelName}. Sending to Council...`);
-        } catch (err) {
-          appendChat("Gemini Notice", err.message + " Switching immediately to DeepSeek R1...");
-        }
-      }
-
-      // 2. Primary Fallback to DeepSeek R1 via OpenRouter
-      if (!initialDraft) {
-        if (!openRouterKey) {
-          appendChat("System Error", "Gemini key had permission issues and no OpenRouter key was provided for DeepSeek R1 fallback. Please open Vault.");
-          statusBox.classList.add('hidden');
-          return;
-        }
-
-        try {
-          appendChat("DeepSeek R1", "Drafting base architecture with DeepSeek R1 Reasoning Engine...", true);
-          const r1Result = await requestDeepSeekR1(openRouterKey, prompt);
-          initialDraft = r1Result.code;
-          appendChat("DeepSeek R1", `Initial build successfully synthesized via ${r1Result.modelName}.`);
-        } catch (fbErr) {
-          appendChat("System Error", "Failed to generate initial draft: " + fbErr.message);
-          statusBox.classList.add('hidden');
-          return;
-        }
-      }
-
-      // Mount base build into editor
-      monacoEditor.setValue(initialDraft);
-      refreshPreview();
-
-      // STEP 2: Council Review
-      if (!openRouterKey) {
-        appendChat("System", "Initial code loaded. Vault lacks OpenRouter key for Council audit.");
-        statusBox.classList.add('hidden');
-        return;
-      }
-
-      statusText.textContent = "Step 2: 10 Free AIs Auditing Concurrently...";
-      progressFill.style.width = '35%';
-
-      FREE_COUNCIL_MODELS.forEach(m => {
-        const badge = document.createElement('span');
-        badge.id = `badge-${m.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        badge.className = 'text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1';
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 pulse-dot"></span> ${m.name}`;
-        badgesContainer.appendChild(badge);
-      });
-
-      let finished = 0;
-      const critiques = [];
-
-      const reviewPromises = FREE_COUNCIL_MODELS.map(async (model) => {
-        const badge = document.getElementById(`badge-${model.id.replace(/[^a-zA-Z0-9]/g, '-')}`);
-        try {
-          const councilRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: model.id,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an elite QA tester. Identify any UI bugs, missing JavaScript events, or styling flaws. Give 2 concise bullet points with actionable fixes."
-                },
-                {
-                  role: "user",
-                  content: `Goal: ${prompt}\n\nCode to inspect:\n${initialDraft.substring(0, 3500)}`
-                }
-              ]
-            })
-          });
-
-          const cData = await councilRes.json();
-          const review = cData.choices?.[0]?.message?.content;
-          if (review) {
-            critiques.push(`[${model.name}]:\n${review}`);
-            if (badge) {
-              badge.className = 'text-[10px] bg-green-950 text-green-300 border border-green-700 px-1.5 py-0.5 rounded flex items-center gap-1';
-              badge.innerHTML = `✓ ${model.name}`;
-            }
-          }
-        } catch (e) {
-          if (badge) {
-            badge.className = 'text-[10px] bg-zinc-900 text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded';
-            badge.innerHTML = `– ${model.name}`;
-          }
-        } finally {
-          finished++;
-          counter.textContent = `${finished}/${FREE_COUNCIL_MODELS.length} Audited`;
-          progressFill.style.width = `${35 + (finished / FREE_COUNCIL_MODELS.length) * 45}%`;
-        }
-      });
-
-      await Promise.allSettled(reviewPromises);
-
-      // STEP 3: Final Synthesis
-      statusText.textContent = "Step 3: Synthesizing Council Fixes...";
-      progressFill.style.width = '90%';
-      appendChat("Council", `Applying corrections from ${critiques.length} models into the final build...`, true);
-
-      try {
-        const synthPrompt = `You are the Lead Master Web Architect.
-User Prompt: "${prompt}"
-
-Base Code:
-${initialDraft}
-
-Council Audits and Bug Fixes:
-${critiques.slice(0, 8).join("\n\n")}
-
-Task: Output the complete, production-ready, beautiful HTML/CSS/JS file implementing all council fixes.
-Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without conversational markdown.`;
-
-        let finalCode = "";
-
-        // Attempt Gemini synthesis first
-        if (geminiKey) {
-          try {
-            const synthResult = await requestGemini(geminiKey, synthPrompt);
-            finalCode = synthResult.code;
-          } catch(e) {}
-        }
-
-        // Fallback to DeepSeek R1 for synthesis
-        if (!finalCode && openRouterKey) {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: "deepseek/deepseek-r1:free",
-              messages: [{ role: "user", content: synthPrompt }]
-            })
-          });
-          const data = await res.json();
-          finalCode = extractHTML(data.choices?.[0]?.message?.content);
-        }
-
-        if (finalCode && finalCode.length > 50) {
-          typeIntoMonaco(finalCode);
-          appendChat("Council", `Complete! Final clicker game with council fixes applied to Monaco.`);
-        }
-      } catch (synthErr) {
-        appendChat("System", "Synthesis finished with initial draft active.");
-      } finally {
-        progressFill.style.width = '100%';
-        setTimeout(() => statusBox.classList.add('hidden'), 2500);
-      }
-    };
-
-    function typeIntoMonaco(code) {
-      monacoEditor.setValue("");
-      let cur = 0;
-      const step = Math.max(25, Math.floor(code.length / 70));
-      const interval = setInterval(() => {
-        cur += step;
-        if (cur >= code.length) {
-          monacoEditor.setValue(code);
-          clearInterval(interval);
-          refreshPreview();
-        } else {
-          monacoEditor.setValue(code.substring(0, cur));
-        }
-      }, 15);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      initFirebase();
-      lucide.createIcons();
-    });
-  </script>
-</body>
-</html><!DOCTYPE html>
+    // Starter Clicker Game
+    const defaultTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NexusIDE — Multi-AI HTML Studio</title>
-
-  <!-- Suppress Tailwind CDN production warning -->
-  <script>
-    const _origWarn = console.warn;
-    console.warn = (...args) => {
-      if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
-      _origWarn.apply(console, args);
-    };
-  </script>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-  <!-- Monaco Editor -->
-  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
-
+  <meta charset="UTF-8">
+  <title>Clicker Game Demo</title>
   <style>
-    body { background-color: #181818; color: #cccccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #1e1e1e; }
-    ::-webkit-scrollbar-thumb { background: #424242; border-radius: 3px; }
-    .copilot-gradient { background: linear-gradient(135deg, #7928ca 0%, #ff0080 100%); }
-    .pulse-dot { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #1e1b4b, #0f172a);
+      font-family: system-ui, sans-serif;
+      color: #fff;
+      user-select: none;
+    }
+    #counter { font-size: 3.5rem; font-weight: bold; margin-bottom: 1rem; color: #a855f7; }
+    #clickBtn {
+      font-size: 1.5rem;
+      padding: 1rem 2.5rem;
+      border: none;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #9333ea, #ec4899);
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.4);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    #clickBtn:active { transform: scale(0.92); }
+    .hint { margin-top: 1.5rem; color: #94a3b8; font-size: 0.9rem; }
   </style>
 </head>
-<body class="h-screen w-screen flex flex-col overflow-hidden select-none">
-
-  <!-- TOP BAR -->
-  <header class="h-11 bg-[#252526] border-b border-[#3c3c3c] flex items-center justify-between px-3 text-xs">
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-1.5 font-bold text-white tracking-wide">
-        <i data-lucide="code-2" class="w-4 h-4 text-purple-400"></i>
-        <span>Nexus<span class="text-purple-400">IDE</span></span>
-      </div>
-      <span class="text-zinc-600">|</span>
-      <span class="text-zinc-400 font-mono">index.html</span>
-      <span id="syncIndicator" class="text-[10px] text-zinc-500 italic flex items-center gap-1">
-        <span class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span> Local only
-      </span>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <button id="authBtn" class="flex items-center gap-1.5 bg-[#2d2d30] hover:bg-[#3e3e42] border border-[#444] px-2.5 py-1 rounded text-zinc-200 transition">
-        <i data-lucide="user" class="w-3.5 h-3.5 text-zinc-400"></i>
-        <span id="authBtnLabel">Sign In (Save Keys)</span>
-      </button>
-
-      <button id="runBtn" class="flex items-center gap-1.5 bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded transition">
-        <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Run
-      </button>
-
-      <button id="downloadBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#484848] text-white px-2 py-1 rounded transition">
-        <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
-      </button>
-
-      <button id="openSettingsBtn" class="flex items-center gap-1.5 bg-purple-950/70 hover:bg-purple-900 border border-purple-700/60 text-purple-200 px-2.5 py-1 rounded transition">
-        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i> Vault / Keys
-      </button>
-    </div>
-  </header>
-
-  <!-- MAIN WORKSPACE -->
-  <div class="flex-1 flex overflow-hidden">
-    
-    <!-- LEFT: MONACO EDITOR + LIVE PREVIEW -->
-    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-      <div class="flex-1 flex flex-col border-r border-[#333333] relative">
-        <div class="h-8 bg-[#1e1e1e] flex items-center px-3 border-b border-[#2d2d2d] justify-between text-xs text-zinc-400">
-          <span class="flex items-center gap-1.5 font-mono"><i data-lucide="file-code" class="w-3.5 h-3.5 text-amber-400"></i> editor.html</span>
-          <span id="activeModelLabel" class="text-[10px] text-zinc-500">Ready</span>
-        </div>
-        <div id="monacoMount" class="flex-1 w-full"></div>
-      </div>
-
-      <div class="flex-1 flex flex-col bg-white">
-        <div class="h-8 bg-[#252526] flex items-center justify-between px-3 border-b border-[#333333] text-xs text-zinc-300">
-          <div class="flex items-center gap-2">
-            <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
-            <span>Preview Engine</span>
-          </div>
-          <button id="refreshBtn" title="Reload Frame" class="hover:text-white"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
-        </div>
-        <iframe id="previewFrame" class="flex-1 w-full h-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
-      </div>
-    </main>
-
-    <!-- RIGHT: COPILOT PANEL -->
-    <aside class="w-96 bg-[#1e1e1e] flex flex-col border-l border-[#333333]">
-      <div class="p-3 bg-[#252526] border-b border-[#333333] flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="w-6 h-6 rounded-md copilot-gradient flex items-center justify-center text-white">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-          </div>
-          <div>
-            <h2 class="text-xs font-bold text-white">Copilot Council</h2>
-            <p class="text-[10px] text-zinc-400">Gemini / DeepSeek R1 + 10 Free AIs</p>
-          </div>
-        </div>
-        <span class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800">
-          Auto-Failover
-        </span>
-      </div>
-
-      <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
-        <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
-          <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="info" class="w-3.5 h-3.5 text-purple-400"></i> Dual-Engine Resilience:
-          </p>
-          <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li>Attempts <b>Gemini 2.x</b> first.</li>
-            <li>If Gemini key has permission limits, auto-switches to <b>DeepSeek R1</b>.</li>
-            <li>Audited by a committee of 10 free AI models in parallel.</li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Live Council Execution Status -->
-      <div id="councilStatusBox" class="hidden p-3 bg-[#181818] border-t border-[#333333]">
-        <div class="flex justify-between items-center mb-1.5 text-[11px]">
-          <span class="text-purple-300 font-medium" id="councilStatusText">Auditing...</span>
-          <span class="text-zinc-400" id="councilCounter">0/10 Finished</span>
-        </div>
-        <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-          <div id="councilProgressFill" class="bg-gradient-to-r from-purple-500 to-pink-500 h-full w-0 transition-all duration-300"></div>
-        </div>
-        <div id="councilBadges" class="mt-2.5 flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
-      </div>
-
-      <!-- Prompt Input -->
-      <div class="p-3 bg-[#252526] border-t border-[#333333]">
-        <div class="relative">
-          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Build a clicker game with upgrades, auto-clickers, and animations')..."
-            class="w-full bg-[#1e1e1e] text-zinc-200 border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-xs resize-none outline-none focus:ring-1 focus:ring-purple-500"></textarea>
-          <button id="submitPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-lg">
-            <span>Generate</span>
-            <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
-          </button>
-        </div>
-      </div>
-    </aside>
-  </div>
-
-  <!-- FIREBASE AUTH & API KEY VAULT MODAL -->
-  <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-[#252526] border border-[#3c3c3c] w-full max-w-lg rounded-xl shadow-2xl p-5 text-xs text-zinc-300">
-      
-      <div class="flex items-center justify-between pb-3 border-b border-[#3c3c3c]">
-        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-          <i data-lucide="lock" class="w-4 h-4 text-purple-400"></i> Secure Key Vault
-        </h3>
-        <button id="closeSettingsBtn" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
-      </div>
-
-      <div class="my-3 p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] flex items-center justify-between">
-        <div>
-          <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Current Session</span>
-          <span id="userSessionLabel" class="text-white font-medium">Guest (Local storage only)</span>
-        </div>
-        <div class="flex gap-2">
-          <button id="guestSignInBtn" class="bg-zinc-700 hover:bg-zinc-600 text-white px-2.5 py-1 rounded transition text-[11px]">1-Click Guest</button>
-          <button id="googleSignInBtn" class="bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-1 rounded transition text-[11px] flex items-center gap-1">
-            <i data-lucide="log-in" class="w-3 h-3"></i> Google Sign-In
-          </button>
-        </div>
-      </div>
-
-      <div class="space-y-3">
-        <div>
-          <label class="block font-semibold text-white mb-1">Google Gemini API Key (Optional with fallback)</label>
-          <input type="password" id="geminiKey" placeholder="Paste your key here..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
-          <p class="text-[10px] text-zinc-500 mt-0.5">Free from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 underline">Google AI Studio</a>.</p>
-        </div>
-
-        <div>
-          <label class="block font-semibold text-white mb-1">OpenRouter API Key (For DeepSeek R1 & Council)</label>
-          <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
-          <p class="text-[10px] text-zinc-500 mt-0.5">Free access on <a href="https://openrouter.ai/keys" target="_blank" class="text-purple-400 underline">OpenRouter</a> ($0 balance works on :free models).</p>
-        </div>
-      </div>
-
-      <div class="mt-4 pt-3 border-t border-[#3c3c3c] flex items-center justify-between">
-        <span class="text-[10px] text-zinc-500 flex items-center gap-1">
-          <i data-lucide="shield" class="w-3 h-3 text-green-400"></i> Cloud Synced
-        </span>
-        <button id="saveVaultBtn" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded font-medium">Save to Vault</button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Monaco Editor loader -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+<body>
+  <div id="counter">0</div>
+  <button id="clickBtn">Click Me!</button>
+  <p class="hint">Type a prompt on the right to customize this app!</p>
 
   <script>
-    lucide.createIcons();
+    let score = 0;
+    const counter = document.getElementById('counter');
+    document.getElementById('clickBtn').addEventListener('click', () => {
+      score++;
+      counter.textContent = score;
+    });
+  <\/script>
+</body>
+</html>`;
 
     // 100% FREE ACTIVE MODELS ON OPENROUTER
     const FREE_COUNCIL_MODELS = [
       { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1" },
       { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B" },
       { id: "qwen/qwen-2.5-coder-32b-instruct:free", name: "Qwen 2.5 Coder" },
-      { id: "mistralai/mistral-small-24b-instruct-2501:free", name: "Mistral Small 24B" },
+      { id: "mistralai/mistral-small-24b-instruct-2501:free", name: "Mistral Small" },
       { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash" },
       { id: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Hermes 405B" },
-      { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B" },
       { id: "deepseek/deepseek-chat:free", name: "DeepSeek V3" },
+      { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B" },
       { id: "google/gemini-2.0-pro-exp-02-05:free", name: "Gemini 2.0 Pro" },
-      { id: "cognitivecomputations/dolphin3.0-r1-mistral-24b:free", name: "Dolphin R1 Mistral" }
+      { id: "cognitivecomputations/dolphin3.0-r1-mistral-24b:free", name: "Dolphin R1" }
     ];
 
-    let monacoEditor = null;
-    let currentUser = null;
-    let db = null;
-    let auth = null;
+    let editor = null;
+    let isNativeEditor = false;
 
-    // Load Monaco
-    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
-    require(['vs/editor/editor.main'], function () {
-      monacoEditor = monaco.editor.create(document.getElementById('monacoMount'), {
-        value: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { margin:0; height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; color:#f8fafc; font-family:sans-serif; text-align:center; }
-    h1 { background:linear-gradient(to right, #c084fc, #38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  </style>
-</head>
-<body>
-  <div>
-    <h1>NexusIDE Ready</h1>
-    <p>Describe your app in Copilot to build with Gemini / DeepSeek R1 & Council</p>
-  </div>
-</body>
-</html>`,
-        language: 'html',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        fontSize: 13,
-        minimap: { enabled: true },
-        wordWrap: 'on'
-      });
-
-      monacoEditor.onDidChangeModelContent(refreshPreview);
+    // UNBREAKABLE EDITOR INITIALIZER
+    function initEditor() {
+      try {
+        if (window.ace) {
+          editor = ace.edit("editorMount");
+          editor.setTheme("ace/theme/tomorrow_night_eighties");
+          editor.session.setMode("ace/mode/html");
+          editor.setValue(defaultTemplate, -1);
+          editor.setOptions({
+            fontSize: "13px",
+            showPrintMargin: false,
+            wrap: true
+          });
+          editor.session.on('change', refreshPreview);
+          isNativeEditor = false;
+        } else {
+          throw new Error("Ace not available");
+        }
+      } catch (e) {
+        // Fallback directly to native editor if external CDN is blocked
+        isNativeEditor = true;
+        document.getElementById('editorMount').classList.add('hidden');
+        const fallback = document.getElementById('nativeFallbackEditor');
+        fallback.classList.remove('hidden');
+        fallback.value = defaultTemplate;
+        fallback.addEventListener('input', refreshPreview);
+      }
       refreshPreview();
-    });
+    }
 
+    function getEditorCode() {
+      if (!isNativeEditor && editor) return editor.getValue();
+      return document.getElementById('nativeFallbackEditor').value;
+    }
+
+    function setEditorCode(val) {
+      if (!isNativeEditor && editor) {
+        editor.setValue(val, -1);
+      } else {
+        document.getElementById('nativeFallbackEditor').value = val;
+      }
+      refreshPreview();
+    }
+
+    // Live preview via srcdoc (Never blocked by sandbox or blob URLs)
     function refreshPreview() {
-      if (!monacoEditor) return;
-      const blob = new Blob([monacoEditor.getValue()], { type: 'text/html' });
-      document.getElementById('previewFrame').src = URL.createObjectURL(blob);
+      const code = getEditorCode();
+      const frame = document.getElementById('previewFrame');
+      frame.srcdoc = code;
     }
 
     document.getElementById('runBtn').onclick = refreshPreview;
     document.getElementById('refreshBtn').onclick = refreshPreview;
 
     document.getElementById('downloadBtn').onclick = () => {
-      const blob = new Blob([monacoEditor.getValue()], { type: "text/html" });
+      const blob = new Blob([getEditorCode()], { type: "text/html" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "index.html";
       a.click();
     };
 
-    // Firebase Init
+    // Firebase Init (Wrapped in try-catch so failure can never break the IDE)
+    let auth = null, db = null, currentUser = null;
     function initFirebase() {
       try {
-        const config = {
-          apiKey: "AIzaSyDemo-Project-For-Static-IDE",
-          authDomain: "nexus-free-ide.firebaseapp.com",
-          projectId: "nexus-free-ide"
-        };
-        if (!firebase.apps.length) firebase.initializeApp(config);
-        auth = firebase.auth();
-        db = firebase.firestore();
+        if (window.firebase) {
+          const config = {
+            apiKey: "AIzaSyDemoKey-SafeStaticApp",
+            authDomain: "nexus-free-ide.firebaseapp.com",
+            projectId: "nexus-free-ide"
+          };
+          if (!firebase.apps.length) firebase.initializeApp(config);
+          auth = firebase.auth();
+          db = firebase.firestore();
 
-        auth.onAuthStateChanged(async (user) => {
-          currentUser = user;
-          const userSessionLabel = document.getElementById('userSessionLabel');
-          const syncIndicator = document.getElementById('syncIndicator');
-          const authBtnLabel = document.getElementById('authBtnLabel');
-
-          if (user) {
-            userSessionLabel.textContent = user.isAnonymous ? `Guest (${user.uid.slice(0, 6)}...)` : (user.email || user.displayName);
-            authBtnLabel.textContent = user.isAnonymous ? "Guest Synced" : (user.displayName || "Connected");
-            syncIndicator.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Vault Active';
-
-            try {
-              const doc = await db.collection("users").doc(user.uid).get();
-              if (doc.exists) {
-                const data = doc.data();
-                if (data.geminiKey) document.getElementById('geminiKey').value = data.geminiKey;
-                if (data.openRouterKey) document.getElementById('openRouterKey').value = data.openRouterKey;
-              }
-            } catch(e) {}
-          } else {
-            document.getElementById('geminiKey').value = localStorage.getItem('nexus_gemini_key') || '';
-            document.getElementById('openRouterKey').value = localStorage.getItem('nexus_openrouter_key') || '';
-          }
-        });
+          auth.onAuthStateChanged((user) => {
+            currentUser = user;
+            if (user) {
+              document.getElementById('userSessionLabel').textContent = user.isAnonymous ? "Guest Synced" : (user.email || user.displayName);
+              document.getElementById('authBtnLabel').textContent = user.isAnonymous ? "Guest Synced" : "Connected";
+            }
+          });
+        }
       } catch (e) {}
+
+      // Load saved keys
+      document.getElementById('geminiKey').value = localStorage.getItem('nexus_gemini_key') || '';
+      document.getElementById('openRouterKey').value = localStorage.getItem('nexus_openrouter_key') || '';
     }
 
-    // Modal controls
+    // Modal Events
     const settingsModal = document.getElementById('settingsModal');
     document.getElementById('openSettingsBtn').onclick = () => settingsModal.classList.remove('hidden');
     document.getElementById('authBtn').onclick = () => settingsModal.classList.remove('hidden');
     document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.add('hidden');
 
     document.getElementById('guestSignInBtn').onclick = async () => {
-      if (auth) await auth.signInAnonymously();
+      if (auth) {
+        try { await auth.signInAnonymously(); } catch(e){ alert(e.message); }
+      } else {
+        alert("Local storage active.");
+      }
     };
+
     document.getElementById('googleSignInBtn').onclick = async () => {
-      if (auth) await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+      if (auth) {
+        try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); } catch(e){ alert(e.message); }
+      } else {
+        alert("Firebase Auth blocked by network/adblock. Using Local Vault.");
+      }
     };
 
     document.getElementById('saveVaultBtn').onclick = async () => {
@@ -1039,11 +400,11 @@ Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without c
             openRouterKey: oKey,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           }, { merge: true });
-        } catch (e) {}
+        } catch(e) {}
       }
 
       settingsModal.classList.add('hidden');
-      appendChat("System", "Vault updated successfully.");
+      appendChat("System", "Vault updated. Ready to generate.");
     };
 
     function appendChat(sender, msg, isSpecial = false) {
@@ -1063,23 +424,18 @@ Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without c
       container.scrollTop = container.scrollHeight;
     }
 
-    // ROBUST HTML & CODE EXTRACTOR (Strips <think> tags from DeepSeek R1)
+    // Robust HTML extractor that strips DeepSeek <think> reasoning tokens
     function extractHTML(str) {
       if (!str) return '';
       let clean = str.trim();
-
-      // Remove DeepSeek-R1 reasoning blocks (<think>...</think>)
       if (clean.includes('</think>')) {
         clean = clean.split('</think>')[1].trim();
       }
-
-      // Check standard markdown ```html codeblocks
       if (clean.includes("```html")) {
         clean = clean.split("```html")[1].split("```")[0];
       } else if (clean.includes("```")) {
         clean = clean.split("```")[1].split("```")[0];
       } else {
-        // Fallback: extract entire <html>...</html> or tag envelope if no markdown was returned
         const firstTag = clean.indexOf('<');
         const lastTag = clean.lastIndexOf('>');
         if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
@@ -1089,98 +445,61 @@ Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without c
       return clean.trim();
     }
 
-    // GEMINI CALLER WITH MODEL SCAN
-    async function requestGemini(apiKey, promptText) {
-      const cleanKey = apiKey.trim();
-      const candidateModels = [
-        'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-1.5-flash-latest'
-      ];
-
-      const requestBody = JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }]
+    // Call DeepSeek R1 via OpenRouter
+    async function requestDeepSeekR1(openRouterKey, promptText) {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openRouterKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "deepseek/deepseek-r1:free",
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert web developer. Create a single, self-contained, working HTML file with inline CSS and JS. Output ONLY raw HTML inside ```html```."
+            },
+            {
+              role: "user",
+              content: `Build: "${promptText}". Return only the code.`
+            }
+          ]
+        })
       });
 
-      const headers = {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': cleanKey
-      };
-
-      for (const model of candidateModels) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
-          const res = await fetch(url, { method: 'POST', headers, body: requestBody });
-          if (res.status === 404) continue;
-
-          const data = await res.json();
-          if (data.error) throw new Error(data.error.message);
-
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          const extracted = extractHTML(text);
-          if (extracted && extracted.length > 30) {
-            document.getElementById('activeModelLabel').textContent = `Active: ${model}`;
-            return { code: extracted, modelName: model };
-          }
-        } catch (e) {
-          if (!e.message.includes('404')) throw e;
-        }
-      }
-
-      throw new Error("No active Gemini model found for this key.");
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "DeepSeek R1 error");
+      const text = data.choices?.[0]?.message?.content;
+      const code = extractHTML(text);
+      if (!code || code.length < 30) throw new Error("Empty code response");
+      return code;
     }
 
-    // DEEPSEEK R1 FALLBACK ENGINE
-    async function requestDeepSeekR1(openRouterKey, promptText) {
-      const modelsToTry = [
-        "deepseek/deepseek-r1:free",
-        "deepseek/deepseek-chat:free",
-        "qwen/qwen-2.5-coder-32b-instruct:free"
-      ];
+    // Call Gemini with model fallback
+    async function requestGemini(apiKey, promptText) {
+      const cleanKey = apiKey.trim();
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
+      const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey };
+      const body = JSON.stringify({ contents: [{ parts: [{ text: `Create a single self-contained HTML file with inline CSS and JS for: "${promptText}". Return code inside \`\`\`html\`\`\`.` }] }] });
 
-      for (const modelId of modelsToTry) {
+      for (const m of models) {
         try {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": window.location.href,
-              "X-Title": "NexusIDE"
-            },
-            body: JSON.stringify({
-              model: modelId,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an expert web developer. Output only a complete single-file HTML app with inline CSS (<style>) and JS (<script>). Do not explain."
-                },
-                {
-                  role: "user",
-                  content: `Create a single-file, production-ready HTML web app for: "${promptText}". Return code inside \`\`\`html\`\`\`.`
-                }
-              ]
-            })
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(cleanKey)}`, {
+            method: 'POST', headers, body
           });
-
+          if (res.status === 404) continue;
           const data = await res.json();
           if (data.error) continue;
-
-          const raw = data.choices?.[0]?.message?.content;
-          const extracted = extractHTML(raw);
-
-          if (extracted && extracted.length > 40) {
-            document.getElementById('activeModelLabel').textContent = `Active: ${modelId}`;
-            return { code: extracted, modelName: modelId };
-          }
-        } catch (err) {}
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          const code = extractHTML(text);
+          if (code && code.length > 30) return { code, modelName: m };
+        } catch(e) {}
       }
-
-      throw new Error("DeepSeek R1 and OpenRouter fallback models could not be reached.");
+      throw new Error("No active Gemini model");
     }
 
-    // MULTI-AI PIPELINE
+    // MAIN PIPELINE
     document.getElementById('submitPromptBtn').onclick = async () => {
       const promptInput = document.getElementById('aiPromptInput');
       const prompt = promptInput.value.trim();
@@ -1188,8 +507,9 @@ Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without c
       const openRouterKey = document.getElementById('openRouterKey').value.trim() || localStorage.getItem('nexus_openrouter_key');
 
       if (!prompt) return;
-      if (!geminiKey && !openRouterKey) {
-        alert("Please configure either your Gemini API Key or OpenRouter API Key in the Vault.");
+
+      if (!openRouterKey && !geminiKey) {
+        alert("Please paste your free OpenRouter API key in the Vault to generate!");
         settingsModal.classList.remove('hidden');
         return;
       }
@@ -1211,45 +531,52 @@ Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without c
 
       let initialDraft = "";
 
-      // 1. Try Gemini
+      // 1. Try Gemini if provided
       if (geminiKey) {
         try {
           appendChat("Gemini", "Contacting Google AI Studio...", true);
-          const result = await requestGemini(geminiKey, `Create a complete, single-file HTML app with modern CSS (<style>) and JS (<script>) for: "${prompt}". Return ONLY clean executable code inside \`\`\`html\`\`\`.`);
-          initialDraft = result.code;
-          appendChat("Gemini", `Initial build compiled via ${result.modelName}. Sending to Council...`);
-        } catch (err) {
-          appendChat("Gemini Notice", err.message + " Switching immediately to DeepSeek R1...");
+          const gResult = await requestGemini(geminiKey, prompt);
+          initialDraft = gResult.code;
+          appendChat("Gemini", `Draft created via ${gResult.modelName}. Handing to Council...`);
+        } catch (e) {
+          appendChat("Gemini Notice", "Gemini unavailable. Switching to DeepSeek R1...");
         }
       }
 
-      // 2. Primary Fallback to DeepSeek R1 via OpenRouter
-      if (!initialDraft) {
-        if (!openRouterKey) {
-          appendChat("System Error", "Gemini key had permission issues and no OpenRouter key was provided for DeepSeek R1 fallback. Please open Vault.");
-          statusBox.classList.add('hidden');
-          return;
-        }
-
+      // 2. Direct DeepSeek R1 Generation (Primary / Fallback)
+      if (!initialDraft && openRouterKey) {
         try {
-          appendChat("DeepSeek R1", "Drafting base architecture with DeepSeek R1 Reasoning Engine...", true);
-          const r1Result = await requestDeepSeekR1(openRouterKey, prompt);
-          initialDraft = r1Result.code;
-          appendChat("DeepSeek R1", `Initial build successfully synthesized via ${r1Result.modelName}.`);
-        } catch (fbErr) {
-          appendChat("System Error", "Failed to generate initial draft: " + fbErr.message);
-          statusBox.classList.add('hidden');
-          return;
+          appendChat("DeepSeek R1", "Generating architecture with DeepSeek R1 Reasoning Model...", true);
+          initialDraft = await requestDeepSeekR1(openRouterKey, prompt);
+          appendChat("DeepSeek R1", "Initial draft built. Handing to Council for review...");
+        } catch (e) {
+          appendChat("DeepSeek R1", "DeepSeek busy. Trying Qwen 2.5 Coder backup...");
+          try {
+            const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${openRouterKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "qwen/qwen-2.5-coder-32b-instruct:free",
+                messages: [{ role: "user", content: `Create a single-file HTML app for: "${prompt}". Return ONLY code inside \`\`\`html\`\`\`.` }]
+              })
+            });
+            const data = await res.json();
+            initialDraft = extractHTML(data.choices?.[0]?.message?.content);
+          } catch(err2) {}
         }
       }
 
-      // Mount base build into editor
-      monacoEditor.setValue(initialDraft);
-      refreshPreview();
+      if (!initialDraft) {
+        appendChat("System Error", "Could not generate initial code. Please check your OpenRouter key in the Vault.");
+        statusBox.classList.add('hidden');
+        return;
+      }
+
+      // Write into editor immediately
+      setEditorCode(initialDraft);
 
       // STEP 2: Council Review
       if (!openRouterKey) {
-        appendChat("System", "Initial code loaded. Vault lacks OpenRouter key for Council audit.");
         statusBox.classList.add('hidden');
         return;
       }
@@ -1282,11 +609,11 @@ Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without c
               messages: [
                 {
                   role: "system",
-                  content: "You are an elite QA tester. Identify any UI bugs, missing JavaScript events, or styling flaws. Give 2 concise bullet points with actionable fixes."
+                  content: "You are a senior QA engineer. Identify any UI bugs, missing animations, or logic issues in this HTML code. Give 2 concise bullet points with fixes."
                 },
                 {
                   role: "user",
-                  content: `Goal: ${prompt}\n\nCode to inspect:\n${initialDraft.substring(0, 3500)}`
+                  content: `Goal: ${prompt}\n\nCode:\n${initialDraft.substring(0, 3000)}`
                 }
               ]
             })
@@ -1315,82 +642,53 @@ Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without c
 
       await Promise.allSettled(reviewPromises);
 
-      // STEP 3: Final Synthesis
-      statusText.textContent = "Step 3: Synthesizing Council Fixes...";
+      // STEP 3: Synthesis
+      statusText.textContent = "Step 3: Synthesizing Council Corrections...";
       progressFill.style.width = '90%';
-      appendChat("Council", `Applying corrections from ${critiques.length} models into the final build...`, true);
+      appendChat("Council", `Synthesizing ${critiques.length} expert audits into the definitive codebase...`, true);
 
       try {
-        const synthPrompt = `You are the Lead Master Web Architect.
+        const synthPrompt = `You are the Lead Master Software Architect.
 User Prompt: "${prompt}"
 
 Base Code:
 ${initialDraft}
 
-Council Audits and Bug Fixes:
+Audits from AI Models:
 ${critiques.slice(0, 8).join("\n\n")}
 
-Task: Output the complete, production-ready, beautiful HTML/CSS/JS file implementing all council fixes.
-Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without conversational markdown.`;
+Task: Rewrite the entire HTML file implementing all bug fixes, UI improvements, and animations.
+Return ONLY raw HTML inside \`\`\`html\`\`\`.`;
 
-        let finalCode = "";
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${openRouterKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "deepseek/deepseek-r1:free",
+            messages: [{ role: "user", content: synthPrompt }]
+          })
+        });
 
-        // Attempt Gemini synthesis first
-        if (geminiKey) {
-          try {
-            const synthResult = await requestGemini(geminiKey, synthPrompt);
-            finalCode = synthResult.code;
-          } catch(e) {}
-        }
-
-        // Fallback to DeepSeek R1 for synthesis
-        if (!finalCode && openRouterKey) {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: "deepseek/deepseek-r1:free",
-              messages: [{ role: "user", content: synthPrompt }]
-            })
-          });
-          const data = await res.json();
-          finalCode = extractHTML(data.choices?.[0]?.message?.content);
-        }
+        const data = await res.json();
+        const finalCode = extractHTML(data.choices?.[0]?.message?.content);
 
         if (finalCode && finalCode.length > 50) {
-          typeIntoMonaco(finalCode);
-          appendChat("Council", `Complete! Final clicker game with council fixes applied to Monaco.`);
+          setEditorCode(finalCode);
+          appendChat("Council", "Complete! Refined, bug-fixed code updated in the editor.");
         }
-      } catch (synthErr) {
-        appendChat("System", "Synthesis finished with initial draft active.");
+      } catch (e) {
+        appendChat("System", "Kept initial working build.");
       } finally {
         progressFill.style.width = '100%';
         setTimeout(() => statusBox.classList.add('hidden'), 2500);
       }
     };
 
-    function typeIntoMonaco(code) {
-      monacoEditor.setValue("");
-      let cur = 0;
-      const step = Math.max(25, Math.floor(code.length / 70));
-      const interval = setInterval(() => {
-        cur += step;
-        if (cur >= code.length) {
-          monacoEditor.setValue(code);
-          clearInterval(interval);
-          refreshPreview();
-        } else {
-          monacoEditor.setValue(code.substring(0, cur));
-        }
-      }, 15);
-    }
-
+    // Auto-boot on load
     window.addEventListener('DOMContentLoaded', () => {
+      initEditor();
       initFirebase();
-      lucide.createIcons();
+      try { lucide.createIcons(); } catch(e) {}
     });
   </script>
 </body>
