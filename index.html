@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NexusIDE — Frontier AI HTML Studio</title>
+  <title>NexusIDE — Multi-AI Web Studio</title>
 
-  <!-- Silence CDN warning before Tailwind loads -->
   <script>
     const _origWarn = console.warn;
     console.warn = (...args) => {
@@ -13,14 +12,9 @@
       _origWarn.apply(console, args);
     };
   </script>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Standalone Ace Code Editor -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
-  <!-- Puter.js: Free Frontier AI Gateway (Claude 3.5 Sonnet & GPT-4o with ZERO API Keys) -->
-  <script src="https://js.puter.com/v2/"></script>
 
   <style>
     body { background-color: #181818; color: #cccccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -28,8 +22,6 @@
     ::-webkit-scrollbar-track { background: #1e1e1e; }
     ::-webkit-scrollbar-thumb { background: #424242; border-radius: 3px; }
     .copilot-gradient { background: linear-gradient(135deg, #7928ca 0%, #ff0080 100%); }
-    .pulse-dot { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
     #editorMount { width: 100%; height: 100%; font-size: 13px; }
   </style>
 </head>
@@ -43,23 +35,33 @@
         <span>Nexus<span class="text-purple-400">IDE</span></span>
       </div>
       <span class="text-zinc-600">|</span>
-      <span class="text-zinc-400 font-mono">index.html</span>
-      <span id="syncIndicator" class="text-[10px] text-zinc-500 italic flex items-center gap-1">
-        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online
-      </span>
+      <span id="activeFileTitle" class="text-zinc-300 font-mono">index.html</span>
     </div>
 
+    <!-- Actions -->
     <div class="flex items-center gap-2">
+      <label class="flex items-center gap-1 bg-[#2d2d30] hover:bg-[#3e3e42] border border-[#444] text-zinc-300 px-2.5 py-1 rounded cursor-pointer transition" title="Import Single File">
+        <i data-lucide="file-up" class="w-3.5 h-3.5 text-blue-400"></i> File
+        <input type="file" id="fileImportInput" class="hidden" accept=".html,.css,.js,.json,.txt,.svg" />
+      </label>
+
+      <label class="flex items-center gap-1 bg-[#2d2d30] hover:bg-[#3e3e42] border border-[#444] text-zinc-300 px-2.5 py-1 rounded cursor-pointer transition" title="Import Entire Folder">
+        <i data-lucide="folder-up" class="w-3.5 h-3.5 text-yellow-400"></i> Folder
+        <input type="file" id="folderImportInput" class="hidden" webkitdirectory directory multiple />
+      </label>
+
+      <span class="text-zinc-600">|</span>
+
       <button id="runBtn" class="flex items-center gap-1.5 bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded transition font-medium">
         <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Run
       </button>
 
-      <button id="downloadBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#484848] text-white px-2 py-1 rounded transition">
+      <button id="downloadActiveBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#484848] text-white px-2 py-1 rounded transition">
         <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
       </button>
 
       <button id="openSettingsBtn" class="flex items-center gap-1.5 bg-purple-950/70 hover:bg-purple-900 border border-purple-700/60 text-purple-200 px-2.5 py-1 rounded transition">
-        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i> Vault / Keys
+        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i> Vault / Setup
       </button>
     </div>
   </header>
@@ -67,12 +69,23 @@
   <!-- MAIN WORKSPACE -->
   <div class="flex-1 flex overflow-hidden">
     
-    <!-- LEFT: EDITOR & PREVIEW -->
+    <!-- FILE EXPLORER SIDEBAR -->
+    <aside class="w-48 bg-[#1e1e1e] border-r border-[#333333] flex flex-col text-xs">
+      <div class="h-8 bg-[#252526] px-3 flex items-center justify-between border-b border-[#2d2d2d] text-zinc-400 font-semibold uppercase text-[10px] tracking-wider">
+        <span>Explorer</span>
+        <button id="newFileBtn" title="New File" class="hover:text-white"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></button>
+      </div>
+      <div id="fileListContainer" class="flex-1 overflow-y-auto p-1 space-y-0.5 font-mono text-[11px]"></div>
+    </aside>
+
+    <!-- EDITOR & PREVIEW -->
     <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <!-- Editor Panel -->
       <div class="flex-1 flex flex-col border-r border-[#333333] relative bg-[#1e1e1e]">
-        <div class="h-8 bg-[#252526] flex items-center px-3 border-b border-[#2d2d2d] justify-between text-xs text-zinc-400">
-          <span class="flex items-center gap-1.5 font-mono"><i data-lucide="file-code" class="w-3.5 h-3.5 text-amber-400"></i> editor.html</span>
-          <span id="activeModelLabel" class="text-[10px] text-purple-400 font-medium">Claude 3.5 Sonnet Ready</span>
+        <div id="tabBar" class="h-8 bg-[#252526] flex items-center border-b border-[#2d2d2d] overflow-x-auto text-xs">
+          <div class="h-full bg-[#1e1e1e] border-r border-[#333] px-3 flex items-center gap-2 text-zinc-200 border-t-2 border-t-purple-500">
+            <span id="tabFileName" class="font-mono">index.html</span>
+          </div>
         </div>
         <div class="flex-1 relative w-full h-full">
           <div id="editorMount"></div>
@@ -80,11 +93,12 @@
         </div>
       </div>
 
+      <!-- Live Preview -->
       <div class="flex-1 flex flex-col bg-white">
         <div class="h-8 bg-[#252526] flex items-center justify-between px-3 border-b border-[#333333] text-xs text-zinc-300">
           <div class="flex items-center gap-2">
             <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
-            <span>Live Interactive Preview</span>
+            <span>Live Output</span>
           </div>
           <button id="refreshBtn" title="Reload Frame" class="hover:text-white p-1"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
         </div>
@@ -92,7 +106,7 @@
       </div>
     </main>
 
-    <!-- RIGHT: COPILOT PANEL -->
+    <!-- AI COPILOT PANEL -->
     <aside class="w-96 bg-[#1e1e1e] flex flex-col border-l border-[#333333]">
       <div class="p-3 bg-[#252526] border-b border-[#333333] flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -100,45 +114,51 @@
             <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
           </div>
           <div>
-            <h2 class="text-xs font-bold text-white">Copilot Council</h2>
-            <p class="text-[10px] text-zinc-400">Powered by Claude 3.5 & GPT-4o</p>
+            <h2 class="text-xs font-bold text-white">Copilot Engine</h2>
+            <p class="text-[10px] text-zinc-400">Gemini / OpenRouter / Zero-Key</p>
           </div>
         </div>
-        <span class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800">
-          Frontier AI
-        </span>
       </div>
 
       <!-- Chat Feed -->
       <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
         <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
           <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-yellow-400"></i> Smart Zero-Fail Setup:
+            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400"></i> API Fixes Applied:
           </p>
           <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li><b>Claude 3.5 Sonnet</b> writes the initial architecture (No API key needed).</li>
-            <li>No small/dumb local models: everything runs on frontier-tier cloud models.</li>
-            <li>Multi-model verification ensures bug-free execution.</li>
+            <li><b>Gemini</b>: Now uses stable models and secure header auth.</li>
+            <li><b>OpenRouter</b>: Fallback loop fixed for free models.</li>
+            <li><b>Zero-Key Backup</b>: Always available if keys fail.</li>
           </ul>
         </div>
       </div>
 
-      <!-- Live Council Execution Status -->
+      <!-- AI Status Bar -->
       <div id="councilStatusBox" class="hidden p-3 bg-[#181818] border-t border-[#333333]">
         <div class="flex justify-between items-center mb-1.5 text-[11px]">
-          <span class="text-purple-300 font-medium" id="councilStatusText">Auditing...</span>
-          <span class="text-zinc-400" id="councilCounter">0/4 Finished</span>
+          <span class="text-purple-300 font-medium" id="councilStatusText">Generating...</span>
+          <span class="text-zinc-400" id="councilCounter">Stage 1</span>
         </div>
         <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
           <div id="councilProgressFill" class="bg-gradient-to-r from-purple-500 to-pink-500 h-full w-0 transition-all duration-300"></div>
         </div>
-        <div id="councilBadges" class="mt-2.5 flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
       </div>
 
-      <!-- Prompt Input -->
-      <div class="p-3 bg-[#252526] border-t border-[#333333]">
+      <!-- Prompt Input Dock -->
+      <div class="p-3 bg-[#252526] border-t border-[#333333] space-y-2">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="text-zinc-400">Engine:</span>
+          <select id="engineSelector" class="bg-[#1e1e1e] border border-[#3c3c3c] text-purple-300 text-[11px] rounded px-2 py-0.5 outline-none font-medium">
+            <option value="gemini" selected>🟣 Google Gemini</option>
+            <option value="openrouter">🔵 OpenRouter</option>
+            <option value="zerokey">🟢 Zero-Key Local AI</option>
+            <option value="auto">⚡ Auto-Failover (Try all)</option>
+          </select>
+        </div>
+
         <div class="relative">
-          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Build an advanced Cookie Clicker game with upgrades, auto-clickers, particles, and achievements')..."
+          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Build a Kanban board with drag and drop')..."
             class="w-full bg-[#1e1e1e] text-zinc-200 border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-xs resize-none outline-none focus:ring-1 focus:ring-purple-500"></textarea>
           <button id="submitPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-lg">
             <span>Generate</span>
@@ -155,30 +175,36 @@
       
       <div class="flex items-center justify-between pb-3 border-b border-[#3c3c3c]">
         <h3 class="text-sm font-bold text-white flex items-center gap-2">
-          <i data-lucide="lock" class="w-4 h-4 text-purple-400"></i> API Vault (Optional)
+          <i data-lucide="key-round" class="w-4 h-4 text-purple-400"></i> API Key Vault
         </h3>
         <button id="closeSettingsBtn" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <div class="space-y-4 my-4">
-        <div class="p-3 bg-purple-950/40 border border-purple-800/60 rounded-lg text-purple-200 text-[11px]">
-          <b>Note:</b> You do <b>NOT</b> need any API keys! The app is configured with free cloud access to Claude 3.5 Sonnet. You only need to add keys if you want to use custom private endpoints.
+        <!-- Google Gemini -->
+        <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-white">Google Gemini API Key</label>
+            <button id="testGeminiBtn" class="text-[10px] bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded transition">Test Key</button>
+          </div>
+          <input type="password" id="geminiKey" placeholder="AIza... or AQ..." class="w-full bg-[#141414] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono text-[11px]" />
+          <div id="geminiTestResult" class="text-[10px] hidden font-mono"></div>
         </div>
 
-        <div>
-          <label class="block font-semibold text-white mb-1">OpenRouter Key (Optional)</label>
-          <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
-        </div>
-
-        <div>
-          <label class="block font-semibold text-white mb-1">Google Gemini Key (Optional)</label>
-          <input type="password" id="geminiKey" placeholder="Paste key..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
+        <!-- OpenRouter -->
+        <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-white">OpenRouter API Key</label>
+            <button id="testORBtn" class="text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-0.5 rounded transition">Test Key</button>
+          </div>
+          <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#141414] border border-[#3c3c3c] focus:border-blue-500 rounded p-2 text-zinc-200 outline-none font-mono text-[11px]" />
+          <div id="orTestResult" class="text-[10px] hidden font-mono"></div>
         </div>
       </div>
 
-      <div class="mt-4 pt-3 border-t border-[#3c3c3c] flex items-center justify-between">
+      <div class="pt-3 border-t border-[#3c3c3c] flex items-center justify-between">
         <span class="text-[10px] text-zinc-500 flex items-center gap-1">
-          <i data-lucide="shield" class="w-3 h-3 text-green-400"></i> Stored locally on device
+          <i data-lucide="shield" class="w-3 h-3 text-green-400"></i> Saved to local browser storage
         </span>
         <button id="saveVaultBtn" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded font-medium">Save & Close</button>
       </div>
@@ -189,145 +215,182 @@
   <script>
     try { lucide.createIcons(); } catch(e) {}
 
-    const defaultTemplate = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Cookie Clicker Demo</title>
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at center, #1e1b4b, #0f172a);
-      font-family: system-ui, sans-serif;
-      color: #fff;
-      user-select: none;
-    }
-    #counter { font-size: 3.5rem; font-weight: bold; margin-bottom: 0.5rem; color: #c084fc; }
-    #perSec { font-size: 0.9rem; color: #94a3b8; margin-bottom: 1.5rem; }
-    #clickBtn {
-      font-size: 4rem;
-      width: 140px;
-      height: 140px;
-      border: 4px solid #a855f7;
-      border-radius: 50%;
-      background: #2e1065;
-      cursor: pointer;
-      transition: transform 0.1s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
-    }
-    #clickBtn:active { transform: scale(0.9); }
-    .hint { margin-top: 2rem; color: #94a3b8; font-size: 0.9rem; }
-  </style>
-</head>
-<body>
-  <div id="counter">0</div>
-  <div id="perSec">Cookies Clicked</div>
-  <button id="clickBtn">🍪</button>
-  <p class="hint">Ask Copilot on the right to build any custom web app!</p>
-  <script>
-    let count = 0;
-    const counter = document.getElementById('counter');
-    document.getElementById('clickBtn').addEventListener('click', () => {
-      count++;
-      counter.textContent = count;
-    });
-  <\/script>
-</body>
-</html>`;
+    const projectFiles = {
+      "index.html": `<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: sans-serif; text-align: center; margin-top: 20%; background: #18181b; color: white; }\n  </style>\n</head>\n<body>\n  <h1>NexusIDE Ready</h1>\n  <p>Select your AI engine on the right and type a prompt to begin.</p>\n</body>\n</html>`
+    };
 
+    let activeFileName = "index.html";
     let editor = null;
     let isNativeEditor = false;
 
+    // Sidebar Rendering
+    function renderFileList() {
+      const container = document.getElementById('fileListContainer');
+      container.innerHTML = '';
+      Object.keys(projectFiles).forEach(fileName => {
+        const item = document.createElement('div');
+        const isActive = fileName === activeFileName;
+        item.className = `flex items-center justify-between px-2 py-1 rounded cursor-pointer group ${
+          isActive ? 'bg-[#37373d] text-white' : 'text-zinc-400 hover:bg-[#2a2d2e] hover:text-zinc-200'
+        }`;
+        item.innerHTML = `
+          <div class="flex items-center gap-1.5 truncate">
+            <i data-lucide="${fileName.endsWith('.html') ? 'file-code' : fileName.endsWith('.css') ? 'palette' : 'file-text'}" class="w-3.5 h-3.5 ${
+              fileName.endsWith('.html') ? 'text-amber-400' : fileName.endsWith('.css') ? 'text-blue-400' : 'text-yellow-400'
+            }"></i>
+            <span class="truncate">${fileName}</span>
+          </div>
+          ${Object.keys(projectFiles).length > 1 ? `<button class="delete-file opacity-0 group-hover:opacity-100 hover:text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+        `;
+        item.onclick = (e) => {
+          if (e.target.closest('.delete-file')) {
+            delete projectFiles[fileName];
+            activeFileName = Object.keys(projectFiles)[0];
+            renderFileList();
+            switchFile(activeFileName);
+          } else {
+            switchFile(fileName);
+          }
+        };
+        container.appendChild(item);
+      });
+      try { lucide.createIcons(); } catch(e) {}
+    }
+
+    function switchFile(fileName) {
+      if (editor) projectFiles[activeFileName] = editor.getValue();
+      activeFileName = fileName;
+      document.getElementById('activeFileTitle').textContent = fileName;
+      document.getElementById('tabFileName').textContent = fileName;
+      if (editor) {
+        editor.setValue(projectFiles[fileName] || '', -1);
+        if (fileName.endsWith('.html')) editor.session.setMode("ace/mode/html");
+        else if (fileName.endsWith('.css')) editor.session.setMode("ace/mode/css");
+        else if (fileName.endsWith('.js')) editor.session.setMode("ace/mode/javascript");
+      }
+      renderFileList();
+      refreshPreview();
+    }
+
+    // Importing files
+    document.getElementById('newFileBtn').onclick = () => {
+      const name = prompt("File name (e.g., script.js):");
+      if (name && !projectFiles[name]) { projectFiles[name] = ""; renderFileList(); switchFile(name); }
+    };
+    document.getElementById('fileImportInput').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => { projectFiles[file.name] = ev.target.result; renderFileList(); switchFile(file.name); };
+      reader.readAsText(file);
+    };
+    document.getElementById('folderImportInput').onchange = (e) => {
+      Array.from(e.target.files).forEach(file => {
+        if (file.name.match(/\.(html|css|js|json|txt)$/i)) {
+          const reader = new FileReader();
+          reader.onload = (ev) => { projectFiles[file.name] = ev.target.result; renderFileList(); if (file.name === 'index.html') switchFile('index.html'); };
+          reader.readAsText(file);
+        }
+      });
+    };
+    document.getElementById('downloadActiveBtn').onclick = () => {
+      const content = editor ? editor.getValue() : projectFiles[activeFileName];
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
+      a.download = activeFileName;
+      a.click();
+    };
+
+    // Editor & Preview Setup
     function initEditor() {
       try {
         if (window.ace) {
           editor = ace.edit("editorMount");
           editor.setTheme("ace/theme/tomorrow_night_eighties");
           editor.session.setMode("ace/mode/html");
-          editor.setValue(defaultTemplate, -1);
-          editor.setOptions({ fontSize: "13px", showPrintMargin: false, wrap: true });
-          editor.session.on('change', refreshPreview);
-          isNativeEditor = false;
-        } else {
-          throw new Error();
-        }
+          editor.setValue(projectFiles[activeFileName], -1);
+          editor.session.on('change', () => { projectFiles[activeFileName] = editor.getValue(); refreshPreview(); });
+        } else throw new Error();
       } catch (e) {
         isNativeEditor = true;
         document.getElementById('editorMount').classList.add('hidden');
-        const fallback = document.getElementById('nativeFallbackEditor');
-        fallback.classList.remove('hidden');
-        fallback.value = defaultTemplate;
-        fallback.addEventListener('input', refreshPreview);
+        const fb = document.getElementById('nativeFallbackEditor');
+        fb.classList.remove('hidden');
+        fb.value = projectFiles[activeFileName];
+        fb.addEventListener('input', () => { projectFiles[activeFileName] = fb.value; refreshPreview(); });
       }
-      refreshPreview();
-    }
-
-    function getEditorCode() {
-      if (!isNativeEditor && editor) return editor.getValue();
-      return document.getElementById('nativeFallbackEditor').value;
-    }
-
-    function setEditorCode(val) {
-      if (!isNativeEditor && editor) {
-        editor.setValue(val, -1);
-      } else {
-        document.getElementById('nativeFallbackEditor').value = val;
-      }
+      renderFileList();
       refreshPreview();
     }
 
     function refreshPreview() {
-      document.getElementById('previewFrame').srcdoc = getEditorCode();
+      let html = projectFiles["index.html"] || Object.values(projectFiles)[0] || "";
+      if (projectFiles["style.css"]) html = html.replace('</head>', `<style>\n${projectFiles["style.css"]}\n</style></head>`);
+      if (projectFiles["script.js"]) html = html.replace('</body>', `<script>\n${projectFiles["script.js"]}\n<\/script></body>`);
+      document.getElementById('previewFrame').srcdoc = html;
     }
 
     document.getElementById('runBtn').onclick = refreshPreview;
     document.getElementById('refreshBtn').onclick = refreshPreview;
 
-    document.getElementById('downloadBtn').onclick = () => {
-      const blob = new Blob([getEditorCode()], { type: "text/html" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "index.html";
-      a.click();
-    };
-
-    function loadVault() {
-      document.getElementById('geminiKey').value = localStorage.getItem('nexus_gemini_key') || '';
-      document.getElementById('openRouterKey').value = localStorage.getItem('nexus_openrouter_key') || '';
-    }
-
+    // Vault Logic
     const settingsModal = document.getElementById('settingsModal');
     document.getElementById('openSettingsBtn').onclick = () => settingsModal.classList.remove('hidden');
     document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.add('hidden');
-
     document.getElementById('saveVaultBtn').onclick = () => {
       localStorage.setItem('nexus_gemini_key', document.getElementById('geminiKey').value.trim());
       localStorage.setItem('nexus_openrouter_key', document.getElementById('openRouterKey').value.trim());
       settingsModal.classList.add('hidden');
-      appendChat("System", "Vault updated.");
+      appendChat("System", "API Keys saved.");
     };
 
-    function appendChat(sender, msg, isSpecial = false) {
+    // --- KEY TESTERS ---
+    document.getElementById('testGeminiBtn').onclick = async () => {
+      const key = document.getElementById('geminiKey').value.trim();
+      const resDiv = document.getElementById('geminiTestResult');
+      resDiv.classList.remove('hidden');
+      if (!key) { resDiv.textContent = "❌ Enter a key first."; resDiv.className = "text-[10px] text-red-400 mt-1"; return; }
+      
+      resDiv.textContent = "⏳ Testing key..."; resDiv.className = "text-[10px] text-zinc-400 mt-1";
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+        const data = await res.json();
+        if (res.ok) {
+          resDiv.textContent = "✅ Key is valid and active!"; resDiv.className = "text-[10px] text-green-400 mt-1";
+        } else {
+          resDiv.textContent = `❌ ${data.error?.message || "Invalid key or permissions missing."}`; resDiv.className = "text-[10px] text-red-400 mt-1";
+        }
+      } catch (e) {
+        resDiv.textContent = `❌ Network Error: ${e.message}`; resDiv.className = "text-[10px] text-red-400 mt-1";
+      }
+    };
+
+    document.getElementById('testORBtn').onclick = async () => {
+      const key = document.getElementById('openRouterKey').value.trim();
+      const resDiv = document.getElementById('orTestResult');
+      resDiv.classList.remove('hidden');
+      if (!key) { resDiv.textContent = "❌ Enter a key first."; resDiv.className = "text-[10px] text-red-400 mt-1"; return; }
+      
+      resDiv.textContent = "⏳ Testing key..."; resDiv.className = "text-[10px] text-zinc-400 mt-1";
+      try {
+        const res = await fetch("https://openrouter.ai/api/v1/auth/key", { headers: { "Authorization": `Bearer ${key}` } });
+        const data = await res.json();
+        if (res.ok) {
+          resDiv.textContent = `✅ Valid Key! Limit: ${data.data?.limit || 'Unlimited'}`; resDiv.className = "text-[10px] text-green-400 mt-1";
+        } else {
+          resDiv.textContent = `❌ ${data.error?.message || "Invalid key"}`; resDiv.className = "text-[10px] text-red-400 mt-1";
+        }
+      } catch (e) {
+        resDiv.textContent = `❌ Network Error: ${e.message}`; resDiv.className = "text-[10px] text-red-400 mt-1";
+      }
+    };
+
+    // Chat UI
+    function appendChat(sender, msg) {
       const container = document.getElementById('chatFeed');
       const div = document.createElement('div');
-      div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${
-        isSpecial ? 'bg-purple-950/30 border-purple-800 text-purple-200' :
-        sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'
-      }`;
-      div.innerHTML = `
-        <div class="flex items-center gap-1.5 font-bold text-[11px] mb-1 ${
-          sender.includes('Claude') ? 'text-purple-400' : sender.includes('Council') ? 'text-pink-400' : 'text-blue-400'
-        }">${sender}</div>
-        <div>${msg}</div>
-      `;
+      div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'}`;
+      div.innerHTML = `<div class="font-bold text-[11px] mb-1 text-purple-400">${sender}</div><div class="break-words">${msg}</div>`;
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }
@@ -338,110 +401,139 @@
       if (clean.includes('</think>')) clean = clean.split('</think>')[1].trim();
       if (clean.includes("```html")) clean = clean.split("```html")[1].split("```")[0];
       else if (clean.includes("```")) clean = clean.split("```")[1].split("```")[0];
-      else {
-        const firstTag = clean.indexOf('<');
-        const lastTag = clean.lastIndexOf('>');
-        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
-          clean = clean.substring(firstTag, lastTag + 1);
-        }
-      }
       return clean.trim();
     }
 
-    // 1. CLAUDE 3.5 SONNET VIA PUTER (Zero Key, Best in the World)
-    async function requestClaudeViaPuter(promptText) {
-      if (!window.puter || !puter.ai) throw new Error("Puter unavailable");
+    // --- AI ENGINES ---
+
+    async function generateZeroKey(promptText) {
+      const prompt = `Create a single-file HTML app for: "${promptText}". Output ONLY executable HTML.`;
+      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai`);
+      if (!res.ok) throw new Error("Zero-Key server busy.");
+      return extractHTML(await res.text());
+    }
+
+    async function generateGemini(key, promptText) {
+      // NOTE: Removed ?key= from URL completely. Header auth ONLY. Fixes 404 for AQ. keys.
+      const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
+      const body = JSON.stringify({ contents: [{ parts: [{ text: `Create a complete HTML app for: "${promptText}". Return code inside \`\`\`html\`\`\`.` }] }] });
       
-      const systemPrompt = "You are an elite senior web developer. Create a single, self-contained HTML file with complete, functional, gorgeous inline CSS (<style>) and JavaScript (<script>). Output ONLY valid code inside ```html```.";
-      const fullPrompt = `${systemPrompt}\n\nTask: ${promptText}`;
-
-      // Call Claude 3.5 Sonnet directly
-      const response = await puter.ai.chat(fullPrompt, { model: 'claude-3-5-sonnet' });
-      const rawText = response?.message?.content || (typeof response === 'string' ? response : '');
-      const code = extractHTML(rawText);
-      if (!code || code.length < 50) throw new Error("Empty Claude response");
-      return code;
+      const models = ['gemini-1.5-flash', 'gemini-2.0-flash'];
+      for (const m of models) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers, body });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          if (data.error && data.error.code === 404) continue; // Try next model if 404
+          throw new Error(`Google API Error: ${data.error?.message || res.statusText}`);
+        }
+        
+        const code = extractHTML(data.candidates?.[0]?.content?.parts?.[0]?.text);
+        if (code && code.length > 50) return code;
+      }
+      throw new Error("Both Gemini models returned empty responses.");
     }
 
-    // 2. BACKUP: GPT-4o VIA POLLINATIONS (Zero Key)
-    async function requestGPT4oBackup(promptText) {
-      const systemInstruction = "Create a single complete working HTML file with CSS and JS. Return only code inside ```html```.";
-      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemInstruction + "\n\n" + promptText)}?model=openai`);
-      if (!res.ok) throw new Error("Backup busy");
-      const text = await res.text();
-      const code = extractHTML(text);
-      if (!code || code.length < 50) throw new Error("Empty response");
-      return code;
+    async function generateOpenRouter(key, promptText) {
+      const models = ["qwen/qwen-2.5-coder-32b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemini-2.0-pro-exp-02-05:free"];
+      
+      for (const m of models) {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://nexuside.vercel.app",
+            "X-Title": "NexusIDE"
+          },
+          body: JSON.stringify({
+            model: m,
+            messages: [{ role: "user", content: `Create a single HTML file for: "${promptText}". Output code inside \`\`\`html\`\`\`.` }]
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          if (data.error && data.error.message.includes("does not exist")) continue; // 404 fallback
+          throw new Error(`OpenRouter Error: ${data.error?.message || res.statusText}`);
+        }
+
+        const code = extractHTML(data.choices?.[0]?.message?.content);
+        if (code && code.length > 50) return code;
+      }
+      throw new Error("OpenRouter models busy or unavailable.");
     }
 
-    // MAIN PIPELINE
+    // --- SUBMIT HANDLER ---
     document.getElementById('submitPromptBtn').onclick = async () => {
       const promptInput = document.getElementById('aiPromptInput');
       const prompt = promptInput.value.trim();
+      const selectedEngine = document.getElementById('engineSelector').value;
+      const gKey = document.getElementById('geminiKey').value.trim() || localStorage.getItem('nexus_gemini_key');
+      const oKey = document.getElementById('openRouterKey').value.trim() || localStorage.getItem('nexus_openrouter_key');
+
       if (!prompt) return;
 
       appendChat("User", prompt);
       promptInput.value = "";
 
       const statusBox = document.getElementById('councilStatusBox');
-      const statusText = document.getElementById('councilStatusText');
-      const counter = document.getElementById('councilCounter');
       const progressFill = document.getElementById('councilProgressFill');
-      const badgesContainer = document.getElementById('councilBadges');
-
       statusBox.classList.remove('hidden');
-      badgesContainer.innerHTML = '';
       progressFill.style.width = '30%';
-      statusText.textContent = "Claude 3.5 Sonnet Architecting...";
-      counter.textContent = "Genesis";
 
-      let initialDraft = "";
+      let finalCode = "";
 
-      // 1. Execute via Claude 3.5 Sonnet
       try {
-        appendChat("Claude 3.5 Sonnet", "Synthesizing full application architecture with Claude 3.5 Sonnet...", true);
-        initialDraft = await requestClaudeViaPuter(prompt);
-        appendChat("Claude 3.5 Sonnet", "High-tier codebase synthesized. Validating with audit models...");
-      } catch (claudeErr) {
-        appendChat("Notice", "Claude busy, engaging GPT-4o Frontier Backup...");
-        try {
-          initialDraft = await requestGPT4oBackup(prompt);
-          appendChat("GPT-4o", "Draft generated successfully via GPT-4o.");
-        } catch (gptErr) {
-          appendChat("System Error", "All frontier models busy. Please try again in 5 seconds.");
-          statusBox.classList.add('hidden');
-          return;
+        if (selectedEngine === "zerokey") {
+          appendChat("System", "Generating via Zero-Key AI...");
+          finalCode = await generateZeroKey(prompt);
+        } 
+        else if (selectedEngine === "gemini") {
+          if (!gKey) throw new Error("Gemini Key missing. Please add it in the Vault.");
+          appendChat("System", "Generating via Google Gemini...");
+          finalCode = await generateGemini(gKey, prompt);
         }
+        else if (selectedEngine === "openrouter") {
+          if (!oKey) throw new Error("OpenRouter Key missing. Please add it in the Vault.");
+          appendChat("System", "Generating via OpenRouter Free Models...");
+          finalCode = await generateOpenRouter(oKey, prompt);
+        }
+        else if (selectedEngine === "auto") {
+          // Auto cascade
+          if (gKey) {
+            try { appendChat("System", "Trying Gemini..."); finalCode = await generateGemini(gKey, prompt); } catch(e) { appendChat("Error", e.message); }
+          }
+          if (!finalCode && oKey) {
+            try { appendChat("System", "Trying OpenRouter..."); finalCode = await generateOpenRouter(oKey, prompt); } catch(e) { appendChat("Error", e.message); }
+          }
+          if (!finalCode) {
+            appendChat("System", "Trying Zero-Key Backup...");
+            finalCode = await generateZeroKey(prompt);
+          }
+        }
+
+        if (finalCode) {
+          projectFiles[activeFileName] = finalCode;
+          if (editor) editor.setValue(finalCode, -1);
+          refreshPreview();
+          appendChat("Success", "Code generated successfully!");
+        } else {
+          throw new Error("No code could be generated.");
+        }
+
+      } catch (err) {
+        appendChat("Generation Failed", err.message);
+      } finally {
+        progressFill.style.width = '100%';
+        setTimeout(() => statusBox.classList.add('hidden'), 1000);
       }
-
-      // Display initial draft immediately
-      setEditorCode(initialDraft);
-
-      // Council Verification Stage
-      statusText.textContent = "Frontier Audit Verification...";
-      progressFill.style.width = '70%';
-
-      const auditModels = [
-        { name: "Logic & State Audit" },
-        { name: "UI & Animation Polish" },
-        { name: "Responsive Layout Check" }
-      ];
-
-      auditModels.forEach(m => {
-        const badge = document.createElement('span');
-        badge.className = 'text-[10px] bg-green-950 text-green-300 border border-green-700 px-1.5 py-0.5 rounded flex items-center gap-1';
-        badge.innerHTML = `✓ ${m.name}`;
-        badgesContainer.appendChild(badge);
-      });
-
-      progressFill.style.width = '100%';
-      setTimeout(() => statusBox.classList.add('hidden'), 1500);
-      appendChat("Council", "Audits complete. Production-ready web app running in live preview.");
     };
 
     window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('geminiKey').value = localStorage.getItem('nexus_gemini_key') || '';
+      document.getElementById('openRouterKey').value = localStorage.getItem('nexus_openrouter_key') || '';
       initEditor();
-      loadVault();
     });
   </script>
 </body>
