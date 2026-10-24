@@ -3,61 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NexusIDE — Agentic AI Web Studio</title>
-
-  <script>
-    const _origWarn = console.warn;
-    console.warn = (...args) => {
-      if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
-      _origWarn.apply(console, args);
-    };
-  </script>
+  <title>NexusIDE — Multi-Model AI HTML Studio</title>
+  <link rel="icon" href="data:," />
+  
+  <!-- Tailwind CSS CDN for modern UI -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+  <!-- Monaco Editor (VS Code core) -->
+  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
 
   <style>
-    body { background-color: #181818; color: #cccccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      background-color: #181818;
+      color: #cccccc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    /* Custom scrollbars like VS Code */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #1e1e1e; }
     ::-webkit-scrollbar-thumb { background: #424242; border-radius: 3px; }
-    .copilot-gradient { background: linear-gradient(135deg, #7928ca 0%, #ff0080 100%); }
-    #editorMount { width: 100%; height: 100%; font-size: 13px; }
-    .think-block { border-left: 2px solid #a855f7; padding-left: 10px; color: #94a3b8; font-style: italic; font-size: 10.5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555555; }
+    
+    .copilot-gradient {
+      background: linear-gradient(135deg, #7928ca 0%, #ff0080 100%);
+    }
+    .status-pulse {
+      animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col overflow-hidden select-none">
 
-  <!-- TOP BAR -->
-  <header class="h-11 bg-[#252526] border-b border-[#3c3c3c] flex items-center justify-between px-3 text-xs">
+  <!-- TOP APP MENU BAR -->
+  <header class="h-10 bg-[#252526] border-b border-[#3c3c3c] flex items-center justify-between px-3 text-xs">
     <div class="flex items-center gap-3">
-      <div class="flex items-center gap-1.5 font-bold text-white tracking-wide">
+      <div class="flex items-center gap-2 font-bold text-white tracking-wide">
         <i data-lucide="code-2" class="w-4 h-4 text-purple-400"></i>
         <span>Nexus<span class="text-purple-400">IDE</span></span>
       </div>
-      <span class="text-zinc-600">|</span>
-      <span id="activeFileTitle" class="text-zinc-300 font-mono">index.html</span>
+      <span class="text-zinc-500">|</span>
+      <span class="text-zinc-400">index.html</span>
+      <span id="saveStatus" class="text-[10px] text-zinc-500 italic">Auto-synced</span>
     </div>
 
     <!-- Actions -->
     <div class="flex items-center gap-2">
-      <label class="flex items-center gap-1 bg-[#2d2d30] hover:bg-[#3e3e42] border border-[#444] text-zinc-300 px-2.5 py-1 rounded cursor-pointer transition" title="Import Single File">
-        <i data-lucide="file-up" class="w-3.5 h-3.5 text-blue-400"></i> File
-        <input type="file" id="fileImportInput" class="hidden" accept=".html,.css,.js,.json,.txt,.svg" />
-      </label>
-      <label class="flex items-center gap-1 bg-[#2d2d30] hover:bg-[#3e3e42] border border-[#444] text-zinc-300 px-2.5 py-1 rounded cursor-pointer transition" title="Import Entire Folder">
-        <i data-lucide="folder-up" class="w-3.5 h-3.5 text-yellow-400"></i> Folder
-        <input type="file" id="folderImportInput" class="hidden" webkitdirectory directory multiple />
-      </label>
-      <span class="text-zinc-600">|</span>
-      <button id="runBtn" class="flex items-center gap-1.5 bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded transition font-medium">
-        <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Run
+      <button id="runBtn" class="flex items-center gap-1.5 bg-[#0e639c] hover:bg-[#1177bb] text-white px-2.5 py-1 rounded transition">
+        <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Run Preview
       </button>
-      <button id="downloadActiveBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#484848] text-white px-2 py-1 rounded transition">
+      <button id="downloadBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#505050] text-white px-2.5 py-1 rounded transition">
         <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
       </button>
-      <button id="openSettingsBtn" class="flex items-center gap-1.5 bg-purple-950/70 hover:bg-purple-900 border border-purple-700/60 text-purple-200 px-2.5 py-1 rounded transition">
-        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i> Vault / Setup
+      <button id="settingsBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#505050] text-white px-2.5 py-1 rounded transition">
+        <i data-lucide="key" class="w-3.5 h-3.5"></i> API Keys
       </button>
     </div>
   </header>
@@ -65,573 +68,527 @@
   <!-- MAIN WORKSPACE -->
   <div class="flex-1 flex overflow-hidden">
     
-    <!-- FILE EXPLORER SIDEBAR -->
-    <aside class="w-48 bg-[#1e1e1e] border-r border-[#333333] flex flex-col text-xs">
-      <div class="h-8 bg-[#252526] px-3 flex items-center justify-between border-b border-[#2d2d2d] text-zinc-400 font-semibold uppercase text-[10px] tracking-wider">
-        <span>Explorer</span>
-        <button id="newFileBtn" title="New File" class="hover:text-white"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></button>
-      </div>
-      <div id="fileListContainer" class="flex-1 overflow-y-auto p-1 space-y-0.5 font-mono text-[11px]"></div>
-    </aside>
-
-    <!-- EDITOR & PREVIEW -->
-    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+    <!-- LEFT: MONACO EDITOR & PREVIEW SPLIT -->
+    <main class="flex-1 flex flex-col md:flex-row border-r border-[#333333] overflow-hidden">
+      
       <!-- Editor Panel -->
-      <div class="flex-1 flex flex-col border-r border-[#333333] relative bg-[#1e1e1e]">
-        <div id="tabBar" class="h-8 bg-[#252526] flex items-center border-b border-[#2d2d2d] overflow-x-auto text-xs">
-          <div class="h-full bg-[#1e1e1e] border-r border-[#333] px-3 flex items-center gap-2 text-zinc-200 border-t-2 border-t-purple-500">
-            <span id="tabFileName" class="font-mono">index.html</span>
+      <section class="flex-1 flex flex-col border-r border-[#333333] relative">
+        <div class="h-8 bg-[#1e1e1e] flex items-center px-4 border-b border-[#2d2d2d] justify-between text-xs">
+          <div class="flex items-center gap-2 text-zinc-300 font-mono">
+            <i data-lucide="file-code" class="w-3.5 h-3.5 text-orange-400"></i>
+            <span>editor.html</span>
           </div>
+          <span class="text-[11px] text-zinc-500">HTML5 + CSS + JS</span>
         </div>
-        <div class="flex-1 relative w-full h-full">
-          <div id="editorMount"></div>
-          <textarea id="nativeFallbackEditor" class="hidden w-full h-full bg-[#1e1e1e] text-zinc-200 p-3 font-mono text-xs outline-none resize-none"></textarea>
-        </div>
-      </div>
+        <!-- Monaco Mount Point -->
+        <div id="monacoEditor" class="flex-1 w-full"></div>
+      </section>
 
-      <!-- Live Preview -->
-      <div class="flex-1 flex flex-col bg-white">
+      <!-- Live Preview Panel -->
+      <section class="flex-1 flex flex-col bg-white">
         <div class="h-8 bg-[#252526] flex items-center justify-between px-3 border-b border-[#333333] text-xs text-zinc-300">
           <div class="flex items-center gap-2">
             <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
-            <span>Live Output</span>
+            <span>Live Output Browser</span>
           </div>
-          <button id="refreshBtn" title="Reload Frame" class="hover:text-white p-1"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
+          <div class="flex items-center gap-2">
+            <button id="refreshPreview" class="hover:text-white"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
+          </div>
         </div>
-        <iframe id="previewFrame" class="flex-1 w-full h-full border-none bg-white"></iframe>
-      </div>
+        <iframe id="previewFrame" class="flex-1 w-full h-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
+      </section>
+
     </main>
 
-    <!-- AI COPILOT PANEL -->
-    <aside class="w-[420px] bg-[#1e1e1e] flex flex-col border-l border-[#333333]">
-      <div class="p-3 bg-[#252526] border-b border-[#333333] flex items-center justify-between">
+    <!-- RIGHT: GITHUB COPILOT-STYLE MULTI-AI COMMITTEE PANEL -->
+    <aside class="w-96 bg-[#1e1e1e] flex flex-col border-l border-[#333333]">
+      
+      <!-- Copilot Title -->
+      <div class="p-3 border-b border-[#333333] flex items-center justify-between bg-[#252526]">
         <div class="flex items-center gap-2">
-          <div class="w-6 h-6 rounded-md copilot-gradient flex items-center justify-center text-white">
+          <div class="w-5 h-5 rounded-md copilot-gradient flex items-center justify-center text-white">
             <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
           </div>
-          <div>
-            <h2 class="text-xs font-bold text-white">Agentic Copilot</h2>
-            <p class="text-[10px] text-zinc-400">Context-Aware AI Architect</p>
-          </div>
+          <h2 class="text-xs font-semibold text-white">Nexus Copilot Council</h2>
         </div>
+        <span class="text-[10px] bg-purple-900/60 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700">
+          Gemini + 3 AIs
+        </span>
       </div>
 
-      <!-- Chat Feed -->
-      <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
-        <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
+      <!-- Chat / Timeline Stream -->
+      <div id="chatStream" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
+        <div class="bg-[#2a2d2e] p-3 rounded-lg border border-[#3e3e42] text-zinc-300">
           <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="brain-circuit" class="w-3.5 h-3.5 text-blue-400"></i> AI Workspace Intelligence:
+            <i data-lucide="info" class="w-4 h-4 text-purple-400"></i> How it works:
           </p>
-          <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li><b>Context Aware</b>: The AI reads all files in your Explorer before writing code.</li>
-            <li><b>Chain of Thought</b>: The AI thinks through problems before modifying files.</li>
-            <li><b>Smart Bundler</b>: Multiple files are now correctly linked and parsed.</li>
-          </ul>
+          <ol class="list-decimal list-inside space-y-1 text-zinc-400 text-[11px]">
+            <li><b>Gemini</b> writes the initial foundational code.</li>
+            <li>A committee of <b>3 OpenRouter AIs</b> simultaneously reviews & catches bugs, responsive flaws, and logic holes.</li>
+            <li>The ensemble fixes are blended into the final code and typed directly into your VS Code editor.</li>
+          </ol>
         </div>
       </div>
 
-      <!-- AI Status Bar -->
-      <div id="councilStatusBox" class="hidden p-3 bg-[#181818] border-t border-[#333333]">
-        <div class="flex justify-between items-center mb-1.5 text-[11px]">
-          <span class="text-purple-300 font-medium" id="councilStatusText">Reading Workspace...</span>
-          <span class="text-zinc-400" id="councilCounter">Active</span>
+      <!-- Committee Live Status Tracker -->
+      <div id="councilProgress" class="hidden p-3 bg-[#181818] border-t border-[#333333]">
+        <div class="flex justify-between items-center mb-1 text-[11px]">
+          <span class="font-medium text-purple-300" id="councilStageTitle">Council Debugging...</span>
+          <span class="text-zinc-400" id="councilProgressCount">0/12 Finished</span>
         </div>
-        <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-          <div id="councilProgressFill" class="bg-gradient-to-r from-purple-500 to-pink-500 h-full w-0 transition-all duration-300"></div>
+        <div class="w-full bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+          <div id="councilProgressBar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-full w-0 transition-all duration-300"></div>
         </div>
+        <div id="activeAIsList" class="mt-2 flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
       </div>
 
       <!-- Prompt Input Dock -->
-      <div class="p-3 bg-[#252526] border-t border-[#333333] space-y-2">
-        <div class="flex items-center justify-between text-[11px]">
-          <span class="text-zinc-400">Engine:</span>
-          <select id="engineSelector" class="bg-[#1e1e1e] border border-[#3c3c3c] text-purple-300 text-[11px] rounded px-2 py-0.5 outline-none font-medium max-w-[200px] truncate">
-            <option value="auto" selected>⚡ Auto-Failover (Best Availability)</option>
-            <option value="openrouter">🔵 OpenRouter (Nemotron, Llama 3.1 70B, Qwen)</option>
-            <option value="gemini">🟣 Google Gemini 3.5 Flash Lite</option>
-            <option value="venice">🔴 Venice.ai (Uncensored)</option>
-            <option value="zerokey">🟢 Zero-Key Backup AI</option>
-          </select>
-        </div>
-
+      <div class="p-3 bg-[#252526] border-t border-[#333333]">
         <div class="relative">
-          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build or modify? (e.g. 'Make style.css link properly to test.html and turn it into a calculator')..."
+          <textarea id="userPrompt" rows="3" placeholder="Describe the web app or UI to build (e.g., 'A Kanban board with drag-and-drop and dark mode')..." 
             class="w-full bg-[#1e1e1e] text-zinc-200 border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-xs resize-none outline-none focus:ring-1 focus:ring-purple-500"></textarea>
-          <button id="submitPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-lg">
+          
+          <button id="sendPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-md">
             <span>Generate</span>
             <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       </div>
+
     </aside>
   </div>
 
-  <!-- API KEY VAULT MODAL -->
-  <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-[#252526] border border-[#3c3c3c] w-full max-w-lg rounded-xl shadow-2xl p-5 text-xs text-zinc-300">
-      
+  <!-- API KEYS MODAL -->
+  <div id="apiModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-[#252526] border border-[#3c3c3c] w-full max-w-md rounded-lg shadow-2xl p-5 text-xs">
       <div class="flex items-center justify-between pb-3 border-b border-[#3c3c3c]">
-        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-          <i data-lucide="key-round" class="w-4 h-4 text-purple-400"></i> API Key Vault
+        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <i data-lucide="key" class="w-4 h-4 text-purple-400"></i> Configure AI Providers
         </h3>
-        <button id="closeSettingsBtn" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button id="closeModalBtn" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <div class="space-y-4 my-4 max-h-[60vh] overflow-y-auto pr-2">
-        <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="font-semibold text-white">Google Gemini API Key</label>
-            <button id="testGeminiBtn" class="text-[10px] bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded transition">Test Key</button>
-          </div>
-          <input type="password" id="geminiKey" placeholder="AIza... or AQ..." class="w-full bg-[#141414] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono text-[11px]" />
-          <div id="geminiTestResult" class="text-[10px] hidden font-mono"></div>
+      <div class="space-y-4 py-4">
+        <div>
+          <label class="block text-zinc-300 font-medium mb-1" for="geminiModelSelect">Gemini Model</label>
+          <select id="geminiModelSelect" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none">
+            <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Default)</option>
+            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+            <option value="gemini-4-argon">Gemini 4 Argon (PAID — API charges apply)</option>
+          </select>
+          <p class="text-[10px] text-amber-300 mt-1">Gemini 4 Argon is a paid model and may incur Google API charges. Check current pricing before use.</p>
         </div>
 
-        <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="font-semibold text-white">OpenRouter API Key</label>
-            <button id="testORBtn" class="text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-0.5 rounded transition">Test Key</button>
-          </div>
-          <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#141414] border border-[#3c3c3c] focus:border-blue-500 rounded p-2 text-zinc-200 outline-none font-mono text-[11px]" />
-          <div id="orTestResult" class="text-[10px] hidden font-mono"></div>
+        <div>
+          <label class="block text-zinc-300 font-medium mb-1">Google Gemini API Key (Initial Architect)</label>
+          <input type="password" id="geminiKeyInput" placeholder="AIzaSy..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none" />
+          <p class="text-[10px] text-zinc-500 mt-1">Used to craft the initial high-level architecture & code.</p>
         </div>
 
-        <div class="p-3 bg-[#1e1e1e] rounded-lg border border-[#3c3c3c] space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="font-semibold text-white flex items-center gap-1"><i data-lucide="flame" class="w-3 h-3 text-red-400"></i> Venice.AI Key (Uncensored)</label>
-            <a href="https://venice.ai/settings/api" target="_blank" class="text-[10px] text-red-400 hover:underline">Get Key</a>
-          </div>
-          <input type="password" id="veniceKey" placeholder="Paste Venice API Key..." class="w-full bg-[#141414] border border-[#3c3c3c] focus:border-red-500 rounded p-2 text-zinc-200 outline-none font-mono text-[11px]" />
+        <div>
+          <label class="block text-zinc-300 font-medium mb-1">OpenRouter API Key (Committee of 3 AIs)</label>
+          <input type="password" id="openRouterKeyInput" placeholder="sk-or-v1-..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none" />
+          <p class="text-[10px] text-zinc-500 mt-1">Used to invoke the selected OpenRouter models to review and patch bugs.</p>
+        </div>
+
+        <div>
+          <label class="block text-zinc-300 font-medium mb-1">Committee Size (Models to consult)</label>
+          <select id="councilSizeSelect" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none">
+            <option value="1">1 AI Model (Fast)</option>
+            <option value="2">2 AI Models (Standard)</option>
+            <option value="3" selected>3 AI Models (Thorough Bug Audit)</option>
+          </select>
         </div>
       </div>
 
-      <div class="pt-3 border-t border-[#3c3c3c] flex items-center justify-between">
-        <span class="text-[10px] text-zinc-500 flex items-center gap-1">
-          <i data-lucide="shield" class="w-3 h-3 text-green-400"></i> Saved to local browser storage
-        </span>
-        <button id="saveVaultBtn" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded font-medium">Save & Close</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-[#3c3c3c]">
+        <button id="saveKeysBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded font-medium">Save & Apply</button>
       </div>
-
     </div>
   </div>
 
+  <!-- Monaco Editor Loader scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+  
   <script>
-    try { lucide.createIcons(); } catch(e) {}
+    // Initialize Lucide Icons
+    lucide.createIcons();
 
-    const projectFiles = {
-      "index.html": `<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: sans-serif; text-align: center; margin-top: 20%; background: #18181b; color: white; }\n  </style>\n</head>\n<body>\n  <h1>NexusIDE Ready</h1>\n  <p>Select your AI engine and type a prompt to begin!</p>\n</body>\n</html>`
-    };
+    // Default Starting Template
+    const initialCode = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NexusIDE Sandbox</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #1e1b4b, #0f172a);
+      font-family: system-ui, sans-serif;
+      color: #fff;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(to right, #c084fc, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p { color: #94a3b8; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>NexusIDE Ready</h1>
+  <p>Ask Copilot on the right to build any web application.</p>
+<\/body>
+</html>`;
 
-    let activeFileName = "index.html";
-    let editor = null;
-    let isNativeEditor = false;
+    let editorInstance = null;
 
-    // Sidebar Rendering
-    function renderFileList() {
-      const container = document.getElementById('fileListContainer');
-      container.innerHTML = '';
-      Object.keys(projectFiles).forEach(fileName => {
-        const item = document.createElement('div');
-        const isActive = fileName === activeFileName;
-        item.className = `flex items-center justify-between px-2 py-1 rounded cursor-pointer group ${
-          isActive ? 'bg-[#37373d] text-white' : 'text-zinc-400 hover:bg-[#2a2d2e] hover:text-zinc-200'
-        }`;
-        item.innerHTML = `
-          <div class="flex items-center gap-1.5 truncate">
-            <i data-lucide="${fileName.endsWith('.html') ? 'file-code' : fileName.endsWith('.css') ? 'palette' : 'file-text'}" class="w-3.5 h-3.5 ${
-              fileName.endsWith('.html') ? 'text-amber-400' : fileName.endsWith('.css') ? 'text-blue-400' : 'text-yellow-400'
-            }"></i>
-            <span class="truncate">${fileName}</span>
-          </div>
-          ${Object.keys(projectFiles).length > 1 ? `<button class="delete-file opacity-0 group-hover:opacity-100 hover:text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
-        `;
-        item.onclick = (e) => {
-          if (e.target.closest('.delete-file')) {
-            delete projectFiles[fileName];
-            activeFileName = Object.keys(projectFiles)[0];
-            renderFileList();
-            switchFile(activeFileName);
-          } else {
-            switchFile(fileName);
-          }
-        };
-        container.appendChild(item);
+    // Load Monaco Editor
+    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+    require(['vs/editor/editor.main'], function () {
+      editorInstance = monaco.editor.create(document.getElementById('monacoEditor'), {
+        value: initialCode,
+        language: 'html',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        fontSize: 13,
+        minimap: { enabled: true },
+        scrollBeyondLastLine: false,
+        wordWrap: "on"
       });
-      try { lucide.createIcons(); } catch(e) {}
+
+      // Update preview on manual edit
+      editorInstance.onDidChangeModelContent(() => {
+        updatePreview();
+      });
+
+      updatePreview();
+    });
+
+    // Model ensemble on OpenRouter
+    const COMMITTEE_MODELS = [
+      { id: "thinkingmachines/inkling:free", name: "Thinking Machines Inkling" },
+      { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "NVIDIA Nemotron 3 Ultra 550B A55B" },
+      { id: "cohere/north-mini-code:free", name: "Cohere North Mini Code" }
+    ];
+
+    // Key management
+    const geminiKeyInput = document.getElementById('geminiKeyInput');
+    const geminiModelSelect = document.getElementById('geminiModelSelect');
+    const openRouterKeyInput = document.getElementById('openRouterKeyInput');
+    const councilSizeSelect = document.getElementById('councilSizeSelect');
+    const apiModal = document.getElementById('apiModal');
+
+    function loadKeys() {
+      geminiKeyInput.value = localStorage.getItem('nexus_gemini_key') || '';
+      const savedGeminiModel = localStorage.getItem('nexus_gemini_model') || 'gemini-3.8-flash';
+      geminiModelSelect.value = [...geminiModelSelect.options].some(option => option.value === savedGeminiModel)
+        ? savedGeminiModel
+        : 'gemini-3.8-flash';
+      openRouterKeyInput.value = localStorage.getItem('nexus_openrouter_key') || '';
+      const savedCouncilSize = parseInt(localStorage.getItem('nexus_council_size') || '3', 10);
+      councilSizeSelect.value = [1, 2, 3].includes(savedCouncilSize) ? String(savedCouncilSize) : '3';
     }
 
-    function switchFile(fileName) {
-      if (!projectFiles[fileName] && projectFiles[fileName] !== "") return;
-      if (editor) projectFiles[activeFileName] = editor.getValue();
-      activeFileName = fileName;
-      document.getElementById('activeFileTitle').textContent = fileName;
-      document.getElementById('tabFileName').textContent = fileName;
-      if (editor) {
-        editor.setValue(projectFiles[fileName] || '', -1);
-        if (fileName.endsWith('.html')) editor.session.setMode("ace/mode/html");
-        else if (fileName.endsWith('.css')) editor.session.setMode("ace/mode/css");
-        else if (fileName.endsWith('.js')) editor.session.setMode("ace/mode/javascript");
-      }
-      renderFileList();
-      refreshPreview();
+    document.getElementById('settingsBtn').onclick = () => {
+      loadKeys();
+      apiModal.classList.remove('hidden');
+    };
+    document.getElementById('closeModalBtn').onclick = () => apiModal.classList.add('hidden');
+    document.getElementById('saveKeysBtn').onclick = () => {
+      localStorage.setItem('nexus_gemini_key', geminiKeyInput.value.trim());
+      localStorage.setItem('nexus_gemini_model', geminiModelSelect.value);
+      localStorage.setItem('nexus_openrouter_key', openRouterKeyInput.value.trim());
+      localStorage.setItem('nexus_council_size', councilSizeSelect.value);
+      apiModal.classList.add('hidden');
+      appendChat("System", "API Keys saved successfully! You are ready to generate.");
+    };
+
+    // Live preview updater
+    function updatePreview() {
+      if (!editorInstance) return;
+      const code = editorInstance.getValue();
+      const iframe = document.getElementById('previewFrame');
+      const blob = new Blob([code], { type: 'text/html' });
+      iframe.src = URL.createObjectURL(blob);
     }
 
-    document.getElementById('newFileBtn').onclick = () => {
-      const name = prompt("File name (e.g., style.css, script.js, test.html):");
-      if (name && !projectFiles[name]) { projectFiles[name] = ""; renderFileList(); switchFile(name); }
-    };
-    document.getElementById('fileImportInput').onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => { projectFiles[file.name] = ev.target.result; renderFileList(); switchFile(file.name); };
-      reader.readAsText(file);
-    };
-    document.getElementById('folderImportInput').onchange = (e) => {
-      Array.from(e.target.files).forEach(file => {
-        if (file.name.match(/\.(html|css|js|json|txt)$/i)) {
-          const reader = new FileReader();
-          reader.onload = (ev) => { projectFiles[file.name] = ev.target.result; renderFileList(); if (file.name === 'index.html') switchFile('index.html'); };
-          reader.readAsText(file);
-        }
-      });
-    };
-    document.getElementById('downloadActiveBtn').onclick = () => {
-      const content = editor ? editor.getValue() : projectFiles[activeFileName];
+    document.getElementById('runBtn').onclick = updatePreview;
+    document.getElementById('refreshPreview').onclick = updatePreview;
+
+    // Export HTML File
+    document.getElementById('downloadBtn').onclick = () => {
+      if (!editorInstance) return;
+      const blob = new Blob([editorInstance.getValue()], { type: "text/html" });
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
-      a.download = activeFileName;
+      a.href = URL.createObjectURL(blob);
+      a.download = "index.html";
       a.click();
     };
 
-    function initEditor() {
-      try {
-        if (window.ace) {
-          editor = ace.edit("editorMount");
-          editor.setTheme("ace/theme/tomorrow_night_eighties");
-          editor.session.setMode("ace/mode/html");
-          editor.setValue(projectFiles[activeFileName], -1);
-          editor.session.on('change', () => { projectFiles[activeFileName] = editor.getValue(); refreshPreview(); });
-        } else throw new Error();
-      } catch (e) {
-        isNativeEditor = true;
-        document.getElementById('editorMount').classList.add('hidden');
-        const fb = document.getElementById('nativeFallbackEditor');
-        fb.classList.remove('hidden');
-        fb.value = projectFiles[activeFileName];
-        fb.addEventListener('input', () => { projectFiles[activeFileName] = fb.value; refreshPreview(); });
-      }
-      renderFileList();
-      refreshPreview();
-    }
+    // Chat Message Helper
+    function appendChat(author, text, isAction = false) {
+      const container = document.getElementById('chatStream');
+      const msg = document.createElement('div');
+      msg.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${
+        isAction 
+          ? 'bg-purple-950/30 border-purple-800 text-purple-200' 
+          : author === 'User' 
+          ? 'bg-[#2d2d30] border-[#444] text-white self-end' 
+          : 'bg-[#252526] border-[#383838] text-zinc-300'
+      }`;
 
-    // SMART BUNDLER: Replaces `<link>` and `<script src="">` dynamically with local workspace files
-    function refreshPreview() {
-      let targetHtml = activeFileName.endsWith('.html') ? activeFileName : Object.keys(projectFiles).find(f => f.endsWith('.html')) || "index.html";
-      let html = projectFiles[targetHtml] || "";
-
-      // Intercept explicit <link rel="stylesheet" href="...">
-      html = html.replace(/<link\s+[^>]*href=["']([^"']+)["'][^>]*>/gi, (match, fileName) => {
-        if (projectFiles[fileName]) return `<style>\n/* Injected ${fileName} */\n${projectFiles[fileName]}\n</style>`;
-        return match;
-      });
-
-      // Intercept explicit <script src="...">
-      html = html.replace(/<script\s+[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi, (match, fileName) => {
-        if (projectFiles[fileName]) return `<script>\n/* Injected ${fileName} */\n${projectFiles[fileName]}\n<\/script>`;
-        return match;
-      });
-
-      document.getElementById('previewFrame').srcdoc = html;
-    }
-
-    document.getElementById('runBtn').onclick = refreshPreview;
-    document.getElementById('refreshBtn').onclick = refreshPreview;
-
-    const settingsModal = document.getElementById('settingsModal');
-    document.getElementById('openSettingsBtn').onclick = () => settingsModal.classList.remove('hidden');
-    document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.add('hidden');
-    document.getElementById('saveVaultBtn').onclick = () => {
-      localStorage.setItem('nexus_gemini_key', document.getElementById('geminiKey').value.trim());
-      localStorage.setItem('nexus_openrouter_key', document.getElementById('openRouterKey').value.trim());
-      localStorage.setItem('nexus_venice_key', document.getElementById('veniceKey').value.trim());
-      settingsModal.classList.add('hidden');
-      appendChat("System", "API Keys saved.");
-    };
-
-    function appendChat(sender, msg, isThinking = false) {
-      const container = document.getElementById('chatFeed');
-      const div = document.createElement('div');
-      
-      if (isThinking) {
-        div.className = `p-2.5 rounded-lg bg-[#252526] border border-[#383838]`;
-        div.innerHTML = `<div class="font-bold text-[11px] mb-1 text-purple-400">🧠 ${sender} thought process:</div><div class="think-block">${msg.replace(/\n/g, '<br>')}</div>`;
-      } else {
-        div.className = `p-2.5 rounded-lg border text-xs leading-relaxed ${sender === 'User' ? 'bg-[#2d2d30] border-[#444] text-white' : 'bg-[#252526] border-[#383838] text-zinc-300'}`;
-        div.innerHTML = `<div class="font-bold text-[11px] mb-1 ${sender.includes('Venice') ? 'text-red-400' : 'text-purple-400'}">${sender}</div><div class="break-words">${msg.replace(/\n/g, '<br>')}</div>`;
-      }
-      
-      container.appendChild(div);
+      msg.innerHTML = `
+        <div class="flex items-center gap-1.5 font-semibold text-[11px] mb-1 ${
+          author === 'Gemini' ? 'text-blue-400' : author === 'Nexus Council' ? 'text-pink-400' : 'text-zinc-400'
+        }">
+          <span>${author}</span>
+        </div>
+        <div>${text}</div>
+      `;
+      container.appendChild(msg);
       container.scrollTop = container.scrollHeight;
     }
 
-    // --- AGENTIC IDE CONTROL PARSER ---
-    function processAIActions(text) {
-      let actionsApplied = 0;
-      
-      // Parse Copilot Chain of Thought
-      const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/);
-      if (thinkMatch) {
-        appendChat("Copilot", thinkMatch[1].trim(), true);
+    // Extraction helper (strips markdown ```html blocks)
+    function cleanCodeBlocks(str) {
+      if (!str) return '';
+      let clean = str.trim();
+      if (clean.includes("```html")) {
+        clean = clean.split("```html")[1].split("```")[0];
+      } else if (clean.includes("```")) {
+        clean = clean.split("```")[1].split("```")[0];
       }
-      
-      // Parse file deletions
-      const deleteRegex = /<delete\s+name="([^"]+)"\s*\/>/g;
-      let match;
-      while ((match = deleteRegex.exec(text)) !== null) {
-        const fileName = match[1];
-        if (projectFiles[fileName]) {
-          delete projectFiles[fileName];
-          actionsApplied++;
-          appendChat("IDE Engine", `🗑️ Deleted ${fileName}`);
-        }
+      return clean.trim();
+    }
+
+    // CORE AI WORKFLOW
+    document.getElementById('sendPromptBtn').onclick = async () => {
+      const promptInput = document.getElementById('userPrompt');
+      const prompt = promptInput.value.trim();
+      const geminiKey = localStorage.getItem('nexus_gemini_key') || geminiKeyInput.value.trim();
+      const geminiModel = geminiModelSelect.value;
+      const openRouterKey = localStorage.getItem('nexus_openrouter_key') || openRouterKeyInput.value.trim();
+      const councilSize = parseInt(councilSizeSelect.value, 10);
+
+      if (!prompt) return;
+      if (!geminiKey) {
+        alert("Please set your Gemini API Key in 'API Keys' first.");
+        apiModal.classList.remove('hidden');
+        return;
       }
 
-      // Parse file creation/modification
-      const fileRegex = /<file\s+name="([^"]+)">([\s\S]*?)<\/file>/g;
-      while ((match = fileRegex.exec(text)) !== null) {
-        const fileName = match[1];
-        const content = match[2].trim();
-        projectFiles[fileName] = content;
-        actionsApplied++;
-        appendChat("IDE Engine", `📄 Updated ${fileName}`);
-        activeFileName = fileName;
-      }
+      appendChat("User", prompt);
+      promptInput.value = "";
 
-      // Fallback for non-compliant models that just output a markdown block
-      if (actionsApplied === 0) {
-        let clean = text.trim();
-        if (clean.includes('</think>')) clean = clean.split('</think>')[1].trim();
-        if (clean.includes("```html")) clean = clean.split("```html")[1].split("```")[0];
-        else if (clean.includes("```css")) clean = clean.split("```css")[1].split("```")[0];
-        else if (clean.includes("```js")) clean = clean.split("```js")[1].split("```")[0];
-        else if (clean.includes("```")) clean = clean.split("```")[1].split("```")[0];
+      const progressBox = document.getElementById('councilProgress');
+      const progressBar = document.getElementById('councilProgressBar');
+      const progressCount = document.getElementById('councilProgressCount');
+      const stageTitle = document.getElementById('councilStageTitle');
+      const activeAIsList = document.getElementById('activeAIsList');
+
+      progressBox.classList.remove('hidden');
+      activeAIsList.innerHTML = '';
+      progressBar.style.width = '10%';
+      stageTitle.textContent = "Stage 1: Gemini Architecting...";
+      progressCount.textContent = "1/1 Genesis";
+
+      appendChat("Gemini", "Drafting base architecture, structure, and initial JS/CSS...", true);
+
+      // STEP 1: Gemini generates initial code
+      let initialGeminiDraft = "";
+      try {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `You are an expert web developer. Create a single, self-contained, complete HTML file (with inline <style> and <script>) that fulfills this user prompt:
+"${prompt}"
+
+Rules:
+- Complete standalone working code.
+- No external unlinked libraries unless using standard CDN scripts (Tailwind, Lucide, FontAwesome, or Canvas).
+- Return ONLY the clean raw HTML/CSS/JS without conversational fluff.`
+              }]
+            }]
+          })
+        });
+
+        const geminiData = await geminiRes.json();
+        if (geminiData.error) throw new Error(geminiData.error.message);
         
-        if (clean.length > 20) {
-          projectFiles[activeFileName] = clean.trim();
-          appendChat("IDE Engine", `📄 Updated ${activeFileName}`);
-          actionsApplied++;
-        }
+        initialGeminiDraft = cleanCodeBlocks(geminiData.candidates?.[0]?.content?.parts?.[0]?.text);
+        if (!initialGeminiDraft) throw new Error("Gemini returned empty response.");
+        
+        // Show first draft in editor right away!
+        editorInstance.setValue(initialGeminiDraft);
+        updatePreview();
+        appendChat("Gemini", "Base build synthesized. Handing over to the OpenRouter Multi-AI Council for debugging...");
+
+      } catch (err) {
+        appendChat("System Error", "Gemini failed: " + err.message);
+        progressBox.classList.add('hidden');
+        return;
       }
 
-      if (actionsApplied > 0) {
-        if (!projectFiles[activeFileName]) activeFileName = Object.keys(projectFiles)[0] || "index.html";
-        switchFile(activeFileName);
-      } else {
-        throw new Error("AI did not return any valid code or commands.");
+      // STEP 2: Committee inspection via OpenRouter
+      if (!openRouterKey) {
+        appendChat("System", "Notice: OpenRouter API Key not detected. Skipping multi-AI committee review stage. Your Gemini draft is active in the editor.");
+        progressBox.classList.add('hidden');
+        return;
       }
-    }
 
-    // Gathers all current files and injects them into the AI's prompt so it knows context
-    function getWorkspaceContext() {
-      let ctx = "CURRENT WORKSPACE FILES:\n";
-      for (const [name, content] of Object.entries(projectFiles)) {
-        ctx += `\n--- ${name} ---\n${content}\n`;
-      }
-      return ctx;
-    }
+      stageTitle.textContent = `Stage 2: Council Reviewing (${councilSize} Models Parallel)...`;
+      progressBar.style.width = '35%';
 
-    const SYSTEM_PROMPT = `You are an elite AI architect integrated directly into an IDE.
-You have access to the user's current files. 
-1. First, think through your plan step-by-step using <think>...</think> tags. Outline what needs to change.
-2. Next, apply your code using EXACTLY these XML tags:
+      const selectedModels = COMMITTEE_MODELS.slice(0, councilSize);
+      let finishedReviews = 0;
 
-To create or modify a file:
-<file name="test.html">
-<!DOCTYPE html>
-<html>...
-</file>
-<file name="style.css">
-body { background: black; }
-</file>
+      // Populate visual badge placeholders
+      selectedModels.forEach(m => {
+        const badge = document.createElement('span');
+        badge.id = `badge-${m.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        badge.className = 'text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1';
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500 status-pulse"></span> ${m.name}`;
+        activeAIsList.appendChild(badge);
+      });
 
-To delete a file:
-<delete name="obsolete.js" />
-
-CRITICAL: Return full file content. Never use conversational text outside the tags. If the user asks for HTML + CSS, create TWO separate <file> tags and explicitly link them in the HTML (<link rel="stylesheet" href="style.css">).`;
-
-    // --- AI ENGINES ---
-    async function generateZeroKey(promptText) {
-      const fullPrompt = `${SYSTEM_PROMPT}\n\n${getWorkspaceContext()}\n\nUser Request: ${promptText}`;
-      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}?model=openai`);
-      if (!res.ok) throw new Error("Zero-Key server busy.");
-      processAIActions(await res.text());
-    }
-
-    async function generateGemini(key, promptText) {
-      const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': key };
-      const body = JSON.stringify({ contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${getWorkspaceContext()}\n\nUser Request: ${promptText}` }] }] });
-      
-      const models = ['gemini-3.5-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash-exp'];
-      for (const m of models) {
-        try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers, body });
-          const data = await res.json();
-          
-          if (!res.ok) {
-            appendChat("Gemini Error Log", `${m} failed: ${data.error?.message || res.statusText}. Trying next...`);
-            continue; 
-          }
-          
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            processAIActions(text);
-            return;
-          }
-        } catch(e) {
-           appendChat("Gemini Network Error", e.message);
-        }
-      }
-      throw new Error("All Gemini models failed (See logs above).");
-    }
-
-    async function generateOpenRouter(key, promptText) {
-      // 2026 requested models!
-      const models = [
-        "openrouter/free", // Built-in fallback
-        "nvidia/nemotron-3-ultra-550b-a55b:free",
-        "poolside/laguna-s-2.1:free",
-        "nvidia/nemotron-3.5-super-vl:free",
-        "meta-llama/llama-3.1-70b-instruct:free",
-        "qwen/qwen-2.5-72b-instruct:free"
-      ];
-      
-      for (const m of models) {
+      // Dispatch parallel calls to OpenRouter
+      const critiques = [];
+      const reviewPromises = selectedModels.map(async (model) => {
+        const badge = document.getElementById(`badge-${model.id.replace(/[^a-zA-Z0-9]/g, '-')}`);
         try {
           const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${key}`,
+              "Authorization": `Bearer ${openRouterKey}`,
               "Content-Type": "application/json",
               "HTTP-Referer": window.location.href,
-              "X-Title": "NexusIDE"
+              "X-Title": "NexusIDE HTML Studio"
             },
             body: JSON.stringify({
-              model: m,
+              model: model.id,
               messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: `${getWorkspaceContext()}\n\nUser Request: ${promptText}` }
+                {
+                  role: "system",
+                  content: "You are an elite QA and senior code reviewer. Review the provided HTML/CSS/JS code. Find functional bugs, visual flaws, missing edge cases, and layout responsiveness problems. Respond in 2-3 concise bullet points with exact, actionable fixes."
+                },
+                {
+                  role: "user",
+                  content: `User Request: ${prompt}\n\nCode to inspect:\n${initialGeminiDraft.substring(0, 4000)}`
+                }
               ]
             })
           });
 
           const data = await res.json();
-          
-          if (!res.ok) {
-            // Logs out exactly why a model failed before seamlessly jumping to the next
-            appendChat("OpenRouter Fallback", `Model ${m} skipped: ${data.error?.message || 'Offline'}`);
-            continue; 
+          const review = data.choices?.[0]?.message?.content;
+          if (review) {
+            critiques.push(`[${model.name}]:\n${review}`);
+            if (badge) {
+              badge.className = 'text-[10px] bg-green-950 text-green-300 border border-green-700 px-1.5 py-0.5 rounded flex items-center gap-1';
+              badge.innerHTML = `✓ ${model.name}`;
+            }
           }
-
-          const text = data.choices?.[0]?.message?.content;
-          if (text) {
-            processAIActions(text);
-            return;
+        } catch (e) {
+          if (badge) {
+            badge.className = 'text-[10px] bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded flex items-center gap-1';
+            badge.innerHTML = `✕ ${model.name}`;
           }
-        } catch(e) {
-          appendChat("OpenRouter Network Error", e.message);
+        } finally {
+          finishedReviews++;
+          progressCount.textContent = `${finishedReviews}/${councilSize} Finished`;
+          progressBar.style.width = `${35 + (finishedReviews / councilSize) * 40}%`;
         }
-      }
-      throw new Error("All requested OpenRouter free models are currently offline or busy.");
-    }
-
-    async function generateVenice(key, promptText) {
-      const res = await fetch("https://api.venice.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "default",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `${getWorkspaceContext()}\n\nUser Request: ${promptText}` }
-          ]
-        })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(`Venice API Error: ${data.error?.message || res.statusText}`);
-      
-      const text = data.choices?.[0]?.message?.content;
-      if (text) {
-        processAIActions(text);
-        return;
-      }
-      throw new Error("Venice.ai returned empty response.");
-    }
 
-    // --- SUBMIT HANDLER ---
-    document.getElementById('submitPromptBtn').onclick = async () => {
-      const promptInput = document.getElementById('aiPromptInput');
-      const prompt = promptInput.value.trim();
-      const selectedEngine = document.getElementById('engineSelector').value;
-      const gKey = document.getElementById('geminiKey').value.trim() || localStorage.getItem('nexus_gemini_key');
-      const oKey = document.getElementById('openRouterKey').value.trim() || localStorage.getItem('nexus_openrouter_key');
-      const vKey = document.getElementById('veniceKey').value.trim() || localStorage.getItem('nexus_venice_key');
+      await Promise.allSettled(reviewPromises);
 
-      if (!prompt) return;
-      appendChat("User", prompt);
-      promptInput.value = "";
-
-      const statusBox = document.getElementById('councilStatusBox');
-      const progressFill = document.getElementById('councilProgressFill');
-      statusBox.classList.remove('hidden');
-      progressFill.style.width = '30%';
+      // STEP 3: Final Synthesis
+      stageTitle.textContent = "Stage 3: Synthesizing Council Corrections...";
+      progressBar.style.width = '90%';
+      appendChat("Nexus Council", `Synthesizing ${critiques.length} expert audits into the definitive codebase...`, true);
 
       try {
-        if (selectedEngine === "zerokey") {
-          appendChat("System", "Generating via Zero-Key AI...");
-          await generateZeroKey(prompt);
-        } 
-        else if (selectedEngine === "gemini") {
-          if (!gKey) throw new Error("Gemini Key missing. Add it in the Vault.");
-          appendChat("System", "Generating via Google Gemini Engine...");
-          await generateGemini(gKey, prompt);
+        const synthesisPrompt = `You are the Lead Master Software Architect. You have an initial HTML application draft and a council of AI code reviews pointing out bugs, UI improvements, and missing logic.
+
+Original User Request:
+"${prompt}"
+
+Original Code Draft:
+\`\`\`html
+${initialGeminiDraft}
+\`\`\`
+
+Council Critiques and Fix Suggestions:
+${critiques.slice(0, 10).join("\n\n")}
+
+Task: Rewrite the entire HTML file incorporating all critical bug fixes, UI improvements, animations, responsiveness, and polished code.
+Return ONLY the raw executable HTML code inside \`\`\`html\`\`\` block without additional talk.`;
+
+        // Send to synthesis (using Gemini or Top OpenRouter Model)
+        const finalRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: synthesisPrompt }] }]
+          })
+        });
+
+        const finalData = await finalRes.json();
+        const refinedCode = cleanCodeBlocks(finalData.candidates?.[0]?.content?.parts?.[0]?.text);
+
+        if (refinedCode && refinedCode.length > 50) {
+          // Typewriter write into Monaco Editor
+          typeCodeIntoEditor(refinedCode);
+          appendChat("Nexus Council", `Done! Bug-fixed version integrated into the editor with council audit applied.`);
+        } else {
+          editorInstance.setValue(initialGeminiDraft);
+          updatePreview();
         }
-        else if (selectedEngine === "openrouter") {
-          if (!oKey) throw new Error("OpenRouter Key missing. Add it in the Vault.");
-          appendChat("System", "Generating via OpenRouter Multi-Model Pool...");
-          await generateOpenRouter(oKey, prompt);
-        }
-        else if (selectedEngine === "venice") {
-          if (!vKey) throw new Error("Venice.ai Key missing. Add it in the Vault.");
-          appendChat("System", "Generating via Venice.ai (Uncensored)...");
-          await generateVenice(vKey, prompt);
-        }
-        else if (selectedEngine === "auto") {
-          let success = false;
-          if (gKey) {
-            try { appendChat("System", "Trying Gemini..."); await generateGemini(gKey, prompt); success = true; } catch(e) { appendChat("Error", e.message); }
-          }
-          if (!success && oKey) {
-            try { appendChat("System", "Trying OpenRouter..."); await generateOpenRouter(oKey, prompt); success = true; } catch(e) { appendChat("Error", e.message); }
-          }
-          if (!success) {
-            appendChat("System", "Trying Zero-Key Backup...");
-            await generateZeroKey(prompt);
-          }
-        }
-      } catch (err) {
-        appendChat("Generation Failed", err.message);
+
+      } catch (synthErr) {
+        appendChat("System Error", "Synthesis failed: " + synthErr.message + ". Keeping initial draft.");
       } finally {
-        progressFill.style.width = '100%';
-        setTimeout(() => statusBox.classList.add('hidden'), 1000);
+        progressBar.style.width = '100%';
+        setTimeout(() => progressBox.classList.add('hidden'), 2000);
       }
     };
 
+    // Smooth Typewriter animation for VS Code effect
+    function typeCodeIntoEditor(finalCode) {
+      editorInstance.setValue(""); // clear
+      let index = 0;
+      const step = Math.max(15, Math.floor(finalCode.length / 100)); // smooth chunking
+      
+      const interval = setInterval(() => {
+        index += step;
+        if (index >= finalCode.length) {
+          editorInstance.setValue(finalCode);
+          clearInterval(interval);
+          updatePreview();
+        } else {
+          editorInstance.setValue(finalCode.substring(0, index));
+        }
+      }, 16);
+    }
+
+    // Auto-check on launch
     window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('geminiKey').value = localStorage.getItem('nexus_gemini_key') || '';
-      document.getElementById('openRouterKey').value = localStorage.getItem('nexus_openrouter_key') || '';
-      document.getElementById('veniceKey').value = localStorage.getItem('nexus_venice_key') || '';
-      initEditor();
+      loadKeys();
+      if (!geminiKeyInput.value) {
+        apiModal.classList.remove('hidden');
+      }
     });
   </script>
 </body>
