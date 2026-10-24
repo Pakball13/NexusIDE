@@ -76,9 +76,8 @@
   <!-- MAIN WORKSPACE -->
   <div class="flex-1 flex overflow-hidden">
     
-    <!-- LEFT: VSCODE SPLIT (EDITOR & LIVE PREVIEW) -->
+    <!-- LEFT: MONACO EDITOR + LIVE PREVIEW -->
     <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-      <!-- Monaco Editor Container -->
       <div class="flex-1 flex flex-col border-r border-[#333333] relative">
         <div class="h-8 bg-[#1e1e1e] flex items-center px-3 border-b border-[#2d2d2d] justify-between text-xs text-zinc-400">
           <span class="flex items-center gap-1.5 font-mono"><i data-lucide="file-code" class="w-3.5 h-3.5 text-amber-400"></i> editor.html</span>
@@ -87,7 +86,6 @@
         <div id="monacoMount" class="flex-1 w-full"></div>
       </div>
 
-      <!-- Live Sandbox Preview -->
       <div class="flex-1 flex flex-col bg-white">
         <div class="h-8 bg-[#252526] flex items-center justify-between px-3 border-b border-[#333333] text-xs text-zinc-300">
           <div class="flex items-center gap-2">
@@ -100,7 +98,7 @@
       </div>
     </main>
 
-    <!-- RIGHT: COPILOT AI COUNCIL -->
+    <!-- RIGHT: COPILOT PANEL -->
     <aside class="w-96 bg-[#1e1e1e] flex flex-col border-l border-[#333333]">
       <div class="p-3 bg-[#252526] border-b border-[#333333] flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -109,23 +107,23 @@
           </div>
           <div>
             <h2 class="text-xs font-bold text-white">Copilot Council</h2>
-            <p class="text-[10px] text-zinc-400">Gemini 2.x + 10 Free AIs</p>
+            <p class="text-[10px] text-zinc-400">Gemini / DeepSeek R1 + 10 Free AIs</p>
           </div>
         </div>
         <span class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800">
-          100% Free
+          Auto-Failover
         </span>
       </div>
 
       <div id="chatFeed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs select-text">
         <div class="bg-[#26262a] p-3 rounded border border-zinc-700/60 text-zinc-300">
           <p class="font-semibold text-white mb-1 flex items-center gap-1.5">
-            <i data-lucide="info" class="w-3.5 h-3.5 text-purple-400"></i> How it works:
+            <i data-lucide="info" class="w-3.5 h-3.5 text-purple-400"></i> Dual-Engine Resilience:
           </p>
           <ul class="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li><b>Gemini</b> auto-detects the active model version (2.5/2.0 Flash) to build the core app.</li>
-            <li>A council of <b>10 top-tier free models</b> audits bugs in parallel.</li>
-            <li>Synthesized corrections are typed into Monaco in real time.</li>
+            <li>Attempts <b>Gemini 2.x</b> first.</li>
+            <li>If Gemini key has permission limits, auto-switches to <b>DeepSeek R1</b>.</li>
+            <li>Audited by a committee of 10 free AI models in parallel.</li>
           </ul>
         </div>
       </div>
@@ -145,7 +143,7 @@
       <!-- Prompt Input -->
       <div class="p-3 bg-[#252526] border-t border-[#333333]">
         <div class="relative">
-          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Interactive Canvas Particle Network with mouse physics')..."
+          <textarea id="aiPromptInput" rows="3" placeholder="What would you like to build? (e.g. 'Build a clicker game with upgrades, auto-clickers, and animations')..."
             class="w-full bg-[#1e1e1e] text-zinc-200 border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-xs resize-none outline-none focus:ring-1 focus:ring-purple-500"></textarea>
           <button id="submitPromptBtn" class="absolute bottom-2.5 right-2 copilot-gradient hover:opacity-90 text-white px-3 py-1 rounded text-xs flex items-center gap-1 font-medium transition shadow-lg">
             <span>Generate</span>
@@ -182,15 +180,15 @@
 
       <div class="space-y-3">
         <div>
-          <label class="block font-semibold text-white mb-1">Google Gemini API Key (Accepts AIza... & AQ... keys)</label>
+          <label class="block font-semibold text-white mb-1">Google Gemini API Key (Optional with fallback)</label>
           <input type="password" id="geminiKey" placeholder="Paste your key here..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
           <p class="text-[10px] text-zinc-500 mt-0.5">Free from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 underline">Google AI Studio</a>.</p>
         </div>
 
         <div>
-          <label class="block font-semibold text-white mb-1">OpenRouter API Key (For Free Council Models)</label>
+          <label class="block font-semibold text-white mb-1">OpenRouter API Key (For DeepSeek R1 & Council)</label>
           <input type="password" id="openRouterKey" placeholder="sk-or-v1-..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] focus:border-purple-500 rounded p-2 text-zinc-200 outline-none font-mono" />
-          <p class="text-[10px] text-zinc-500 mt-0.5">Free from <a href="https://openrouter.ai/keys" target="_blank" class="text-purple-400 underline">OpenRouter</a>.</p>
+          <p class="text-[10px] text-zinc-500 mt-0.5">Free access on <a href="https://openrouter.ai/keys" target="_blank" class="text-purple-400 underline">OpenRouter</a> ($0 balance works on :free models).</p>
         </div>
       </div>
 
@@ -243,8 +241,8 @@
 </head>
 <body>
   <div>
-    <h1>NexusIDE is Ready</h1>
-    <p>Describe your app in Copilot to build with Gemini & 10 Free AIs</p>
+    <h1>NexusIDE Ready</h1>
+    <p>Describe your app in Copilot to build with Gemini / DeepSeek R1 & Council</p>
   </div>
 </body>
 </html>`,
@@ -359,7 +357,7 @@
       }`;
       div.innerHTML = `
         <div class="flex items-center gap-1.5 font-bold text-[11px] mb-1 ${
-          sender === 'Gemini' ? 'text-blue-400' : sender === 'Council' ? 'text-pink-400' : 'text-purple-400'
+          sender === 'Gemini' ? 'text-blue-400' : sender.includes('DeepSeek') ? 'text-cyan-400' : sender === 'Council' ? 'text-pink-400' : 'text-purple-400'
         }">${sender}</div>
         <div>${msg}</div>
       `;
@@ -367,19 +365,35 @@
       container.scrollTop = container.scrollHeight;
     }
 
+    // ROBUST HTML & CODE EXTRACTOR (Strips <think> tags from DeepSeek R1)
     function extractHTML(str) {
       if (!str) return '';
       let clean = str.trim();
-      if (clean.includes("```html")) clean = clean.split("```html")[1].split("```")[0];
-      else if (clean.includes("```")) clean = clean.split("```")[1].split("```")[0];
+
+      // Remove DeepSeek-R1 reasoning blocks (<think>...</think>)
+      if (clean.includes('</think>')) {
+        clean = clean.split('</think>')[1].trim();
+      }
+
+      // Check standard markdown ```html codeblocks
+      if (clean.includes("```html")) {
+        clean = clean.split("```html")[1].split("```")[0];
+      } else if (clean.includes("```")) {
+        clean = clean.split("```")[1].split("```")[0];
+      } else {
+        // Fallback: extract entire <html>...</html> or tag envelope if no markdown was returned
+        const firstTag = clean.indexOf('<');
+        const lastTag = clean.lastIndexOf('>');
+        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+          clean = clean.substring(firstTag, lastTag + 1);
+        }
+      }
       return clean.trim();
     }
 
-    // ROBUST GEMINI CALL (With Auto-Discovery and Header Support for AQ. and AIza keys)
+    // GEMINI CALLER WITH MODEL SCAN
     async function requestGemini(apiKey, promptText) {
       const cleanKey = apiKey.trim();
-      
-      // Modern models in prioritized order
       const candidateModels = [
         'gemini-2.5-flash',
         'gemini-2.0-flash',
@@ -391,58 +405,81 @@
         contents: [{ parts: [{ text: promptText }] }]
       });
 
-      // Headers support both new AQ. auth keys and traditional AIza keys
       const headers = {
         'Content-Type': 'application/json',
         'x-goog-api-key': cleanKey
       };
 
-      // 1. Try prioritized modern models
       for (const model of candidateModels) {
         try {
           const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
           const res = await fetch(url, { method: 'POST', headers, body: requestBody });
-          
-          if (res.status === 404) continue; // Try next candidate if retired or moved
+          if (res.status === 404) continue;
 
           const data = await res.json();
-          if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+          if (data.error) throw new Error(data.error.message);
 
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
+          const extracted = extractHTML(text);
+          if (extracted && extracted.length > 30) {
             document.getElementById('activeModelLabel').textContent = `Active: ${model}`;
-            return { code: extractHTML(text), modelName: model };
+            return { code: extracted, modelName: model };
           }
         } catch (e) {
           if (!e.message.includes('404')) throw e;
         }
       }
 
-      // 2. Fallback: Auto-query available models for this specific key
-      try {
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`, { headers });
-        if (listRes.ok) {
-          const listData = await listRes.json();
-          const liveModel = listData.models?.find(m => 
-            m.supportedGenerationMethods?.includes('generateContent') && 
-            (m.name.includes('flash') || m.name.includes('gemini'))
-          );
-          if (liveModel) {
-            const mId = liveModel.name.replace('models/', '');
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mId}:generateContent?key=${encodeURIComponent(cleanKey)}`, {
-              method: 'POST', headers, body: requestBody
-            });
-            const data = await res.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              document.getElementById('activeModelLabel').textContent = `Active: ${mId}`;
-              return { code: extractHTML(text), modelName: mId };
-            }
-          }
-        }
-      } catch (listErr) {}
+      throw new Error("No active Gemini model found for this key.");
+    }
 
-      throw new Error("No compatible Gemini model found for this key. Verify key permissions in Google AI Studio.");
+    // DEEPSEEK R1 FALLBACK ENGINE
+    async function requestDeepSeekR1(openRouterKey, promptText) {
+      const modelsToTry = [
+        "deepseek/deepseek-r1:free",
+        "deepseek/deepseek-chat:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free"
+      ];
+
+      for (const modelId of modelsToTry) {
+        try {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${openRouterKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": window.location.href,
+              "X-Title": "NexusIDE"
+            },
+            body: JSON.stringify({
+              model: modelId,
+              messages: [
+                {
+                  role: "system",
+                  content: "You are an expert web developer. Output only a complete single-file HTML app with inline CSS (<style>) and JS (<script>). Do not explain."
+                },
+                {
+                  role: "user",
+                  content: `Create a single-file, production-ready HTML web app for: "${promptText}". Return code inside \`\`\`html\`\`\`.`
+                }
+              ]
+            })
+          });
+
+          const data = await res.json();
+          if (data.error) continue;
+
+          const raw = data.choices?.[0]?.message?.content;
+          const extracted = extractHTML(raw);
+
+          if (extracted && extracted.length > 40) {
+            document.getElementById('activeModelLabel').textContent = `Active: ${modelId}`;
+            return { code: extracted, modelName: modelId };
+          }
+        } catch (err) {}
+      }
+
+      throw new Error("DeepSeek R1 and OpenRouter fallback models could not be reached.");
     }
 
     // MULTI-AI PIPELINE
@@ -463,210 +500,4 @@
       promptInput.value = "";
 
       const statusBox = document.getElementById('councilStatusBox');
-      const statusText = document.getElementById('councilStatusText');
-      const counter = document.getElementById('councilCounter');
-      const progressFill = document.getElementById('councilProgressFill');
-      const badgesContainer = document.getElementById('councilBadges');
-
-      statusBox.classList.remove('hidden');
-      badgesContainer.innerHTML = '';
-      progressFill.style.width = '15%';
-      statusText.textContent = "Step 1: Drafting Initial Architecture...";
-      counter.textContent = "Genesis";
-
-      let initialDraft = "";
-      let architectModel = "Gemini";
-
-      // STEP 1: Generate initial draft (Gemini with OpenRouter fallback)
-      if (geminiKey) {
-        try {
-          appendChat("Gemini", "Contacting Google AI Studio (verifying active flash models)...", true);
-          const result = await requestGemini(geminiKey, `Create a complete, single-file HTML app with modern CSS (<style>) and JS (<script>) for: "${prompt}". Return ONLY clean executable code inside \`\`\`html\`\`\`.`);
-          initialDraft = result.code;
-          architectModel = result.modelName;
-          appendChat("Gemini", `Initial build compiled successfully using ${result.modelName}. Handing over to Council...`);
-        } catch (err) {
-          appendChat("Gemini Notice", err.message + ". Attempting OpenRouter fallback...");
-        }
-      }
-
-      // Fallback to OpenRouter free model if Gemini was unavailable
-      if (!initialDraft && openRouterKey) {
-        try {
-          architectModel = "Qwen 2.5 Coder (OpenRouter)";
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: "qwen/qwen-2.5-coder-32b-instruct:free",
-              messages: [{ role: "user", content: `Create a complete, single-file HTML app with inline CSS and JS for: "${prompt}". Return ONLY code inside \`\`\`html\`\`\`.` }]
-            })
-          });
-          const data = await res.json();
-          initialDraft = extractHTML(data.choices?.[0]?.message?.content);
-          appendChat("Council Architect", "Draft synthesized via Qwen 2.5 Coder Free Tier.");
-        } catch (fbErr) {
-          appendChat("System Error", "Failed to build initial draft: " + fbErr.message);
-          statusBox.classList.add('hidden');
-          return;
-        }
-      }
-
-      if (!initialDraft) {
-        appendChat("System Error", "Could not generate initial code. Please check your API keys in the Vault.");
-        statusBox.classList.add('hidden');
-        return;
-      }
-
-      monacoEditor.setValue(initialDraft);
-      refreshPreview();
-
-      // STEP 2: Council Review
-      if (!openRouterKey) {
-        appendChat("System", "Add an OpenRouter Key to activate the 10-AI Council audit. Your draft is ready in Monaco.");
-        statusBox.classList.add('hidden');
-        return;
-      }
-
-      statusText.textContent = "Step 2: 10 Free AIs Auditing Concurrently...";
-      progressFill.style.width = '35%';
-
-      FREE_COUNCIL_MODELS.forEach(m => {
-        const badge = document.createElement('span');
-        badge.id = `badge-${m.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        badge.className = 'text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1';
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 pulse-dot"></span> ${m.name}`;
-        badgesContainer.appendChild(badge);
-      });
-
-      let finished = 0;
-      const critiques = [];
-
-      const reviewPromises = FREE_COUNCIL_MODELS.map(async (model) => {
-        const badge = document.getElementById(`badge-${model.id.replace(/[^a-zA-Z0-9]/g, '-')}`);
-        try {
-          const councilRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: model.id,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an elite QA tester. Identify any UI bugs, missing JavaScript events, or styling flaws. Give 2 concise bullet points with actionable fixes."
-                },
-                {
-                  role: "user",
-                  content: `Goal: ${prompt}\n\nCode to inspect:\n${initialDraft.substring(0, 3500)}`
-                }
-              ]
-            })
-          });
-
-          const cData = await councilRes.json();
-          const review = cData.choices?.[0]?.message?.content;
-          if (review) {
-            critiques.push(`[${model.name}]:\n${review}`);
-            if (badge) {
-              badge.className = 'text-[10px] bg-green-950 text-green-300 border border-green-700 px-1.5 py-0.5 rounded flex items-center gap-1';
-              badge.innerHTML = `✓ ${model.name}`;
-            }
-          }
-        } catch (e) {
-          if (badge) {
-            badge.className = 'text-[10px] bg-zinc-900 text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded';
-            badge.innerHTML = `– ${model.name}`;
-          }
-        } finally {
-          finished++;
-          counter.textContent = `${finished}/${FREE_COUNCIL_MODELS.length} Audited`;
-          progressFill.style.width = `${35 + (finished / FREE_COUNCIL_MODELS.length) * 45}%`;
-        }
-      });
-
-      await Promise.allSettled(reviewPromises);
-
-      // STEP 3: Synthesis
-      statusText.textContent = "Step 3: Synthesizing Council Fixes...";
-      progressFill.style.width = '90%';
-      appendChat("Council", `Applying corrections from ${critiques.length} models into the final build...`, true);
-
-      try {
-        const synthPrompt = `You are the Lead Master Web Architect.
-User Prompt: "${prompt}"
-
-Base Code:
-${initialDraft}
-
-Council Audits and Bug Fixes:
-${critiques.slice(0, 8).join("\n\n")}
-
-Task: Output the complete, production-ready, beautiful HTML/CSS/JS file implementing all council fixes.
-Respond ONLY with the complete executable code inside \`\`\`html\`\`\` without conversational markdown.`;
-
-        let finalCode = "";
-
-        if (geminiKey) {
-          try {
-            const synthResult = await requestGemini(geminiKey, synthPrompt);
-            finalCode = synthResult.code;
-          } catch(e) {}
-        }
-
-        if (!finalCode && openRouterKey) {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: "meta-llama/llama-3.3-70b-instruct:free",
-              messages: [{ role: "user", content: synthPrompt }]
-            })
-          });
-          const data = await res.json();
-          finalCode = extractHTML(data.choices?.[0]?.message?.content);
-        }
-
-        if (finalCode && finalCode.length > 50) {
-          typeIntoMonaco(finalCode);
-          appendChat("Council", `Complete! Bug-fixed version written to Monaco Editor.`);
-        }
-      } catch (synthErr) {
-        appendChat("System", "Synthesis finished with initial draft active.");
-      } finally {
-        progressFill.style.width = '100%';
-        setTimeout(() => statusBox.classList.add('hidden'), 2500);
-      }
-    };
-
-    function typeIntoMonaco(code) {
-      monacoEditor.setValue("");
-      let cur = 0;
-      const step = Math.max(25, Math.floor(code.length / 70));
-      const interval = setInterval(() => {
-        cur += step;
-        if (cur >= code.length) {
-          monacoEditor.setValue(code);
-          clearInterval(interval);
-          refreshPreview();
-        } else {
-          monacoEditor.setValue(code.substring(0, cur));
-        }
-      }, 15);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      initFirebase();
-      lucide.createIcons();
-    });
-  </script>
-</body>
-</html>
+      const statu
