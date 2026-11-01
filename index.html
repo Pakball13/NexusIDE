@@ -12,6 +12,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Monaco Editor (VS Code core) -->
   <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
   <style>
     body {
@@ -47,8 +48,9 @@
         <span>Nexus<span class="text-purple-400">IDE</span></span>
       </div>
       <span class="text-zinc-500">|</span>
-      <span class="text-zinc-400">index.html</span>
+      <span id="activeFileLabel" class="text-zinc-400">index.html</span>
       <span id="saveStatus" class="text-[10px] text-zinc-500 italic">Auto-synced</span>
+      <span id="aiModeStatus" class="text-[10px] text-zinc-500">Cloud AI</span>
     </div>
 
     <!-- Actions -->
@@ -58,6 +60,12 @@
       </button>
       <button id="downloadBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#505050] text-white px-2.5 py-1 rounded transition">
         <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
+      </button>
+      <button id="downloadProjectBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#505050] text-white px-2.5 py-1 rounded transition">
+        <i data-lucide="folder-down" class="w-3.5 h-3.5"></i> Download Project
+      </button>
+      <button id="gistBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#505050] text-white px-2.5 py-1 rounded transition">
+        <i data-lucide="git-branch" class="w-3.5 h-3.5"></i> Gist
       </button>
       <button id="settingsBtn" class="flex items-center gap-1.5 bg-[#3c3c3c] hover:bg-[#505050] text-white px-2.5 py-1 rounded transition">
         <i data-lucide="key" class="w-3.5 h-3.5"></i> API Keys
@@ -69,33 +77,48 @@
   <div class="flex-1 flex overflow-hidden">
     
     <!-- LEFT: MONACO EDITOR & PREVIEW SPLIT -->
-    <main class="flex-1 flex flex-col md:flex-row border-r border-[#333333] overflow-hidden">
+    <main class="flex-1 flex border-r border-[#333333] overflow-hidden">
+      <aside class="w-48 shrink-0 bg-[#181818] border-r border-[#333333] flex flex-col">
+        <div class="h-8 bg-[#1e1e1e] flex items-center justify-between px-3 border-b border-[#2d2d2d] text-[10px] font-semibold tracking-wide text-zinc-400">
+          <span>EXPLORER</span>
+          <div class="flex gap-1">
+            <button id="newFileBtn" title="New file" class="hover:text-white"><i data-lucide="file-plus-2" class="w-3.5 h-3.5"></i></button>
+            <button id="newFolderBtn" title="New folder" class="hover:text-white"><i data-lucide="folder-plus" class="w-3.5 h-3.5"></i></button>
+            <button id="renameFolderBtn" title="Rename selected folder" class="hover:text-white"><i data-lucide="folder-pen" class="w-3.5 h-3.5"></i></button>
+            <button id="deleteFolderBtn" title="Delete selected folder" class="hover:text-red-300"><i data-lucide="folder-x" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>
+        <div id="fileTree" class="flex-1 overflow-auto py-1 text-xs font-mono"></div>
+      </aside>
       
       <!-- Editor Panel -->
-      <section class="flex-1 flex flex-col border-r border-[#333333] relative">
+      <section class="flex-1 min-w-0 flex flex-col border-r border-[#333333] relative">
         <div class="h-8 bg-[#1e1e1e] flex items-center px-4 border-b border-[#2d2d2d] justify-between text-xs">
           <div class="flex items-center gap-2 text-zinc-300 font-mono">
             <i data-lucide="file-code" class="w-3.5 h-3.5 text-orange-400"></i>
-            <span>editor.html</span>
+            <span id="editorFileLabel">index.html</span>
           </div>
-          <span class="text-[11px] text-zinc-500">HTML5 + CSS + JS</span>
+          <div class="flex items-center gap-2 text-[11px]">
+            <button id="quickFixBtn" class="text-purple-300 hover:text-white" title="Quick Fix (Ctrl+. / Cmd+.; Groq or offline model)">Quick Fix</button>
+            <button id="renameFileBtn" class="text-zinc-400 hover:text-white" title="Rename current file"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            <button id="deleteFileBtn" class="text-zinc-400 hover:text-red-300" title="Delete current file"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
         </div>
         <!-- Monaco Mount Point -->
         <div id="monacoEditor" class="flex-1 w-full"></div>
       </section>
 
       <!-- Live Preview Panel -->
-      <section class="flex-1 flex flex-col bg-white">
+      <section class="flex-1 min-w-0 flex flex-col bg-[#1e1e1e]">
         <div class="h-8 bg-[#252526] flex items-center justify-between px-3 border-b border-[#333333] text-xs text-zinc-300">
-          <div class="flex items-center gap-2">
-            <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
-            <span>Live Output Browser</span>
+          <div class="flex items-center gap-3">
+            <button id="previewTab" class="text-white">Preview</button>
+            <button id="consoleTab" class="text-zinc-500 hover:text-white">Console <span id="consoleErrorCount" class="text-red-300"></span></button>
           </div>
-          <div class="flex items-center gap-2">
-            <button id="refreshPreview" class="hover:text-white"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
-          </div>
+          <button id="refreshPreview" class="hover:text-white" title="Run preview"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
         </div>
-        <iframe id="previewFrame" class="flex-1 w-full h-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
+        <iframe id="previewFrame" class="flex-1 min-h-0 w-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
+        <div id="consolePanel" class="hidden h-40 shrink-0 overflow-auto bg-[#181818] border-t border-[#333333] p-2 font-mono text-[11px] text-zinc-300"></div>
       </section>
 
     </main>
@@ -109,10 +132,10 @@
           <div class="w-5 h-5 rounded-md copilot-gradient flex items-center justify-center text-white">
             <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
           </div>
-          <h2 class="text-xs font-semibold text-white">Nexus Copilot Council</h2>
+          <h2 class="text-xs font-semibold text-white">United Console</h2>
         </div>
         <span class="text-[10px] bg-purple-900/60 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700">
-          Gemini + 3 AIs
+          Gemini + configured specialists
         </span>
       </div>
 
@@ -123,17 +146,17 @@
             <i data-lucide="info" class="w-4 h-4 text-purple-400"></i> How it works:
           </p>
           <ol class="list-decimal list-inside space-y-1 text-zinc-400 text-[11px]">
-            <li><b>Gemini</b> writes the initial foundational code.</li>
-            <li>A committee of <b>3 OpenRouter AIs</b> simultaneously reviews & catches bugs, responsive flaws, and logic holes.</li>
-            <li>The ensemble fixes are blended into the final code and typed directly into your VS Code editor.</li>
+            <li><b>Gemini</b> architects the project.</li>
+            <li>Configured OpenRouter models handle focused QA roles.</li>
+            <li><b>Groq Llama 3.1 8B</b> helps with concise labels and quick fixes.</li>
           </ol>
         </div>
       </div>
 
-      <!-- Committee Live Status Tracker -->
+      <!-- United Console Live Status -->
       <div id="councilProgress" class="hidden p-3 bg-[#181818] border-t border-[#333333]">
         <div class="flex justify-between items-center mb-1 text-[11px]">
-          <span class="font-medium text-purple-300" id="councilStageTitle">Council Debugging...</span>
+          <span class="font-medium text-purple-300" id="councilStageTitle">United Console working...</span>
           <span class="text-zinc-400" id="councilProgressCount">0/12 Finished</span>
         </div>
         <div class="w-full bg-zinc-700 h-1.5 rounded-full overflow-hidden">
@@ -170,6 +193,24 @@
 
       <div class="space-y-4 py-4">
         <div>
+          <label class="block text-zinc-300 font-medium mb-1" for="aiModeSelect">AI Mode</label>
+          <select id="aiModeSelect" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 outline-none">
+            <option value="cloud">Cloud providers</option>
+            <option value="offline">Offline local PyTorch model</option>
+          </select>
+          <p class="text-[10px] text-zinc-500 mt-1">Offline mode sends requests only to the local model endpoint below. Your model server must expose an OpenAI-compatible chat completions API.</p>
+        </div>
+        <div id="offlineSettings" class="hidden space-y-3">
+          <div>
+            <label class="block text-zinc-300 font-medium mb-1" for="localAiEndpointInput">Local model endpoint</label>
+            <input id="localAiEndpointInput" type="url" value="http://127.0.0.1:8000/v1/chat/completions" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 outline-none" />
+          </div>
+          <div>
+            <label class="block text-zinc-300 font-medium mb-1" for="localAiModelInput">Local model name</label>
+            <input id="localAiModelInput" value="local-pytorch-model" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 outline-none" />
+          </div>
+        </div>
+        <div>
           <label class="block text-zinc-300 font-medium mb-1" for="geminiModelSelect">Gemini Model</label>
           <select id="geminiModelSelect" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none">
             <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Default)</option>
@@ -181,29 +222,51 @@
         </div>
 
         <div>
-          <label class="block text-zinc-300 font-medium mb-1">Google Gemini API Key (Initial Architect)</label>
+          <label class="block text-zinc-300 font-medium mb-1">Google Gemini API Key (Architect + Integrator)</label>
           <input type="password" id="geminiKeyInput" placeholder="AIzaSy..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none" />
-          <p class="text-[10px] text-zinc-500 mt-1">Used to craft the initial high-level architecture & code.</p>
+          <p class="text-[10px] text-zinc-500 mt-1">Builds the initial workspace and integrates the specialist reviews.</p>
         </div>
 
         <div>
-          <label class="block text-zinc-300 font-medium mb-1">OpenRouter API Key (Committee of 3 AIs)</label>
+          <label class="block text-zinc-300 font-medium mb-1">OpenRouter API Key (3-model specialist team)</label>
           <input type="password" id="openRouterKeyInput" placeholder="sk-or-v1-..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none" />
-          <p class="text-[10px] text-zinc-500 mt-1">Used to invoke the selected OpenRouter models to review and patch bugs.</p>
+          <p class="text-[10px] text-zinc-500 mt-1">All three configured OpenRouter models receive separate review responsibilities.</p>
         </div>
 
         <div>
-          <label class="block text-zinc-300 font-medium mb-1">Committee Size (Models to consult)</label>
-          <select id="councilSizeSelect" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none">
-            <option value="1">1 AI Model (Fast)</option>
-            <option value="2">2 AI Models (Standard)</option>
-            <option value="3" selected>3 AI Models (Thorough Bug Audit)</option>
-          </select>
+          <label class="block text-zinc-300 font-medium mb-1" for="groqKeyInput">Groq API Key (Llama 3.1 8B quick fixes)</label>
+          <input type="password" id="groqKeyInput" placeholder="gsk_..." class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 focus:border-purple-500 outline-none" />
+          <p class="text-[10px] text-zinc-500 mt-1">Used for small code fixes and concise UI labels.</p>
         </div>
+
       </div>
 
       <div class="flex justify-end gap-2 pt-2 border-t border-[#3c3c3c]">
         <button id="saveKeysBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded font-medium">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gistModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-[#252526] border border-[#3c3c3c] w-full max-w-md rounded-lg shadow-2xl p-5 text-xs">
+      <div class="flex items-center justify-between pb-3 border-b border-[#3c3c3c]">
+        <h3 class="text-sm font-semibold text-white">GitHub Gist Workspace</h3>
+        <button id="closeGistModalBtn" class="text-zinc-400 hover:text-white" title="Close"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="space-y-3 py-4">
+        <div>
+          <label class="block text-zinc-300 font-medium mb-1" for="gistIdInput">Gist URL or ID (leave empty to create a new gist)</label>
+          <input id="gistIdInput" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 outline-none" placeholder="https://gist.github.com/... or gist ID" />
+        </div>
+        <div>
+          <label class="block text-zinc-300 font-medium mb-1" for="githubTokenInput">GitHub Personal Access Token</label>
+          <input id="githubTokenInput" type="password" autocomplete="off" class="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded p-2 text-zinc-200 outline-none" placeholder="Token with gist permission (kept for this tab session)" />
+          <p class="text-[10px] text-amber-300 mt-1">The token is held in session storage, not included in workspace exports. Public gists can be loaded without a token.</p>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button id="loadGistBtn" class="bg-[#3c3c3c] hover:bg-[#505050] text-white px-3 py-1.5 rounded">Load Gist</button>
+          <button id="saveGistBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded">Create / Update Gist</button>
+        </div>
       </div>
     </div>
   </div>
@@ -213,7 +276,7 @@
   
   <script>
     // Initialize Lucide Icons
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
 
     // Default Starting Template
     const initialCode = `<!DOCTYPE html>
@@ -249,14 +312,256 @@
 <\/body>
 </html>`;
 
+    const WORKSPACE_STORAGE_KEY = 'nexus_workspace_v1';
+    const WORKSPACE_FOLDERS_KEY = 'nexus_workspace_folders_v1';
+    const defaultWorkspace = { 'index.html': initialCode };
+    let workspaceFiles = defaultWorkspace;
+    let workspaceFolders = new Set();
+    let activeFile = 'index.html';
+    let selectedFolder = '';
     let editorInstance = null;
+
+    function normalizeWorkspace(files) {
+      if (!files || typeof files !== 'object' || Array.isArray(files)) return null;
+      const validFiles = Object.entries(files).filter(([path, content]) =>
+        typeof path === 'string' && path.trim() && !path.includes('\\') && typeof content === 'string' &&
+        !path.startsWith('/') && !path.split('/').some(part => !part || part === '.' || part === '..')
+      );
+      return validFiles.length ? Object.fromEntries(validFiles) : null;
+    }
+
+    try {
+      const savedWorkspace = normalizeWorkspace(JSON.parse(localStorage.getItem(WORKSPACE_STORAGE_KEY) || 'null'));
+      if (savedWorkspace) workspaceFiles = savedWorkspace;
+      const savedActiveFile = localStorage.getItem('nexus_workspace_active_file');
+      if (savedActiveFile && Object.prototype.hasOwnProperty.call(workspaceFiles, savedActiveFile)) activeFile = savedActiveFile;
+      const savedFolders = JSON.parse(localStorage.getItem(WORKSPACE_FOLDERS_KEY) || '[]');
+      if (Array.isArray(savedFolders)) {
+        workspaceFolders = new Set(savedFolders.filter(path => typeof path === 'string' && validWorkspacePath(path)));
+      }
+      if (!Object.prototype.hasOwnProperty.call(workspaceFiles, activeFile)) {
+        activeFile = Object.keys(workspaceFiles)[0];
+      }
+    } catch (error) {
+      console.error('Could not restore the saved workspace:', error);
+    }
+
+    function persistWorkspace() {
+      try {
+        localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspaceFiles));
+        localStorage.setItem(WORKSPACE_FOLDERS_KEY, JSON.stringify([...workspaceFolders]));
+        localStorage.setItem('nexus_workspace_active_file', activeFile);
+        const status = document.getElementById('saveStatus');
+        status.textContent = 'Saved locally';
+        status.classList.remove('text-red-400');
+        status.classList.add('text-zinc-500');
+      } catch (error) {
+        console.error('Could not save the workspace:', error);
+        const status = document.getElementById('saveStatus');
+        status.textContent = 'Save failed';
+        status.classList.add('text-red-400');
+      }
+    }
+
+    function getFileLanguage(path) {
+      const extension = path.split('.').pop().toLowerCase();
+      return ({ html: 'html', htm: 'html', css: 'css', js: 'javascript', mjs: 'javascript', ts: 'typescript', json: 'json', md: 'markdown', xml: 'xml', svg: 'xml' })[extension] || 'plaintext';
+    }
+
+    function renderFileTree() {
+      const tree = document.getElementById('fileTree');
+      tree.replaceChildren();
+      const folders = new Set();
+      Object.keys(workspaceFiles).forEach(path => {
+        const segments = path.split('/');
+        for (let index = 1; index < segments.length; index++) folders.add(segments.slice(0, index).join('/'));
+      });
+      workspaceFolders.forEach(path => folders.add(path));
+      const paths = [...folders, ...Object.keys(workspaceFiles)].sort((a, b) => {
+        const aFile = Object.prototype.hasOwnProperty.call(workspaceFiles, a);
+        const bFile = Object.prototype.hasOwnProperty.call(workspaceFiles, b);
+        return Number(aFile) - Number(bFile) || a.localeCompare(b);
+      });
+      paths.forEach(path => {
+        const isFile = Object.prototype.hasOwnProperty.call(workspaceFiles, path);
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = `w-full flex items-center gap-1.5 px-2 py-1 text-left hover:bg-[#2a2d2e] ${isFile && path === activeFile ? 'bg-[#37373d] text-white' : 'text-zinc-400'}`;
+        row.style.paddingLeft = `${8 + (path.split('/').length - 1) * 12}px`;
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', isFile ? (path.endsWith('.html') ? 'file-code-2' : 'file') : 'folder');
+        icon.className = `w-3.5 h-3.5 shrink-0 ${isFile ? 'text-blue-300' : 'text-amber-300'}`;
+        const label = document.createElement('span');
+        label.className = 'truncate';
+        label.textContent = path.split('/').pop();
+        row.append(icon, label);
+        if (isFile) row.addEventListener('click', () => openWorkspaceFile(path));
+        else row.addEventListener('click', () => {
+          selectedFolder = path;
+          renderFileTree();
+        });
+        tree.appendChild(row);
+      });
+      if (window.lucide) lucide.createIcons({ nodes: [tree] });
+    }
+
+    function updateActiveFileLabels() {
+      document.getElementById('activeFileLabel').textContent = activeFile;
+      document.getElementById('editorFileLabel').textContent = activeFile;
+    }
+
+    function openWorkspaceFile(path) {
+      if (!Object.prototype.hasOwnProperty.call(workspaceFiles, path)) return;
+      if (editorInstance) workspaceFiles[activeFile] = editorInstance.getValue();
+      activeFile = path;
+      if (editorInstance) {
+        editorInstance.setValue(workspaceFiles[activeFile]);
+        monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+      }
+      updateActiveFileLabels();
+      renderFileTree();
+      persistWorkspace();
+    }
+
+    function validWorkspacePath(path) {
+      return typeof path === 'string' && path.trim() && !path.startsWith('/') && !path.includes('\\') &&
+        !path.split('/').some(part => !part || part === '.' || part === '..');
+    }
+
+    function workspaceFilePathConflicts(path) {
+      return workspaceFolders.has(path) ||
+        [...workspaceFolders].some(folder => folder.startsWith(`${path}/`)) ||
+        Object.keys(workspaceFiles).some(file => file === path || file.startsWith(`${path}/`) || path.startsWith(`${file}/`));
+    }
+
+    function addWorkspaceFile(path, content = '') {
+      if (!validWorkspacePath(path) || workspaceFilePathConflicts(path)) {
+        alert('Enter a valid, unique relative file path (for example: src/app.js).');
+        return false;
+      }
+      workspaceFiles[path] = content;
+      openWorkspaceFile(path);
+      return true;
+    }
+
+    document.getElementById('newFileBtn').onclick = () => {
+      const path = prompt('New file path (for example: style.css or src/app.js):');
+      if (path !== null) addWorkspaceFile(path.trim());
+    };
+    document.getElementById('newFolderBtn').onclick = () => {
+      const path = prompt('New folder path (for example: src/components):');
+      if (path === null) return;
+      const folder = path.trim().replace(/\/+$/, '');
+      if (!validWorkspacePath(folder) || workspaceFolders.has(folder) ||
+          Object.keys(workspaceFiles).some(file => file === folder || folder.startsWith(`${file}/`))) {
+        alert('Enter a valid folder path that does not conflict with an existing file.');
+        return;
+      }
+      workspaceFolders.add(folder);
+      selectedFolder = folder;
+      renderFileTree();
+      persistWorkspace();
+    };
+    document.getElementById('renameFolderBtn').onclick = () => {
+      if (!selectedFolder) {
+        alert('Select a folder in the explorer first.');
+        return;
+      }
+      const path = prompt('Rename folder:', selectedFolder);
+      if (path === null || path.trim() === selectedFolder) return;
+      const nextPath = path.trim().replace(/\/+$/, '');
+      if (!validWorkspacePath(nextPath) || workspaceFolders.has(nextPath) || nextPath.startsWith(`${selectedFolder}/`) ||
+          Object.keys(workspaceFiles).some(file => file === nextPath || file.startsWith(`${nextPath}/`) || nextPath.startsWith(`${file}/`))) {
+        alert('Enter a valid folder path that does not conflict with an existing path.');
+        return;
+      }
+      const oldPrefix = `${selectedFolder}/`;
+      const nextFiles = {};
+      Object.entries(workspaceFiles).forEach(([file, content]) => {
+        nextFiles[file.startsWith(oldPrefix) ? `${nextPath}/${file.slice(oldPrefix.length)}` : file] = content;
+      });
+      workspaceFiles = nextFiles;
+      workspaceFolders = new Set([...workspaceFolders].map(folder =>
+        folder === selectedFolder ? nextPath : folder.startsWith(oldPrefix) ? `${nextPath}/${folder.slice(oldPrefix.length)}` : folder
+      ));
+      if (activeFile.startsWith(oldPrefix)) activeFile = `${nextPath}/${activeFile.slice(oldPrefix.length)}`;
+      selectedFolder = nextPath;
+      if (editorInstance) {
+        editorInstance.setValue(workspaceFiles[activeFile]);
+        monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+      }
+      updateActiveFileLabels();
+      renderFileTree();
+      persistWorkspace();
+    };
+    document.getElementById('deleteFolderBtn').onclick = () => {
+      if (!selectedFolder) {
+        alert('Select a folder in the explorer first.');
+        return;
+      }
+      if (!confirm(`Delete folder ${selectedFolder} and all its contents?`)) return;
+      const prefix = `${selectedFolder}/`;
+      const removedFiles = Object.keys(workspaceFiles).filter(path => path.startsWith(prefix));
+      if (removedFiles.length >= Object.keys(workspaceFiles).length) {
+        alert('The workspace must contain at least one file. Move or create a file outside this folder first.');
+        return;
+      }
+      removedFiles.forEach(path => delete workspaceFiles[path]);
+      workspaceFolders = new Set([...workspaceFolders].filter(folder => folder !== selectedFolder && !folder.startsWith(prefix)));
+      if (removedFiles.includes(activeFile)) {
+        activeFile = Object.keys(workspaceFiles)[0];
+        if (editorInstance) {
+          editorInstance.setValue(workspaceFiles[activeFile]);
+          monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+        }
+        updateActiveFileLabels();
+      }
+      selectedFolder = '';
+      renderFileTree();
+      persistWorkspace();
+    };
+    document.getElementById('renameFileBtn').onclick = () => {
+      const path = prompt('Rename file:', activeFile);
+      if (path === null || path.trim() === activeFile) return;
+      const nextPath = path.trim();
+      if (!validWorkspacePath(nextPath) || workspaceFilePathConflicts(nextPath)) {
+        alert('Enter a valid, unique relative file path.');
+        return;
+      }
+      workspaceFiles[nextPath] = editorInstance ? editorInstance.getValue() : workspaceFiles[activeFile];
+      delete workspaceFiles[activeFile];
+      activeFile = nextPath;
+      if (editorInstance) {
+        editorInstance.setValue(workspaceFiles[activeFile]);
+        monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+      }
+      updateActiveFileLabels();
+      renderFileTree();
+      persistWorkspace();
+    };
+    document.getElementById('deleteFileBtn').onclick = () => {
+      if (Object.keys(workspaceFiles).length < 2) {
+        alert('The workspace must contain at least one file.');
+        return;
+      }
+      if (!confirm(`Delete ${activeFile}?`)) return;
+      delete workspaceFiles[activeFile];
+      activeFile = Object.keys(workspaceFiles)[0];
+      if (editorInstance) {
+        editorInstance.setValue(workspaceFiles[activeFile]);
+        monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+      }
+      updateActiveFileLabels();
+      renderFileTree();
+      persistWorkspace();
+    };
 
     // Load Monaco Editor
     require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
     require(['vs/editor/editor.main'], function () {
       editorInstance = monaco.editor.create(document.getElementById('monacoEditor'), {
-        value: initialCode,
-        language: 'html',
+        value: workspaceFiles[activeFile],
+        language: getFileLanguage(activeFile),
         theme: 'vs-dark',
         automaticLayout: true,
         fontSize: 13,
@@ -264,12 +569,20 @@
         scrollBeyondLastLine: false,
         wordWrap: "on"
       });
+      editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Period, () => {
+        document.getElementById('quickFixBtn').click();
+      });
 
       // Update preview on manual edit
       editorInstance.onDidChangeModelContent(() => {
+        workspaceFiles[activeFile] = editorInstance.getValue();
+        persistWorkspace();
         updatePreview();
       });
 
+      updateActiveFileLabels();
+      renderFileTree();
+      persistWorkspace();
       updatePreview();
     });
 
@@ -284,18 +597,40 @@
     const geminiKeyInput = document.getElementById('geminiKeyInput');
     const geminiModelSelect = document.getElementById('geminiModelSelect');
     const openRouterKeyInput = document.getElementById('openRouterKeyInput');
-    const councilSizeSelect = document.getElementById('councilSizeSelect');
+    const groqKeyInput = document.getElementById('groqKeyInput');
+    const aiModeSelect = document.getElementById('aiModeSelect');
+    const localAiEndpointInput = document.getElementById('localAiEndpointInput');
+    const localAiModelInput = document.getElementById('localAiModelInput');
+    const offlineSettings = document.getElementById('offlineSettings');
     const apiModal = document.getElementById('apiModal');
 
+    function updateAiModeSettings() {
+      offlineSettings.classList.toggle('hidden', aiModeSelect.value !== 'offline');
+      groqKeyInput.closest('div').classList.toggle('hidden', aiModeSelect.value === 'offline');
+      openRouterKeyInput.closest('div').classList.toggle('hidden', aiModeSelect.value === 'offline');
+      geminiModelSelect.closest('div').classList.toggle('hidden', aiModeSelect.value === 'offline');
+      geminiKeyInput.closest('div').classList.toggle('hidden', aiModeSelect.value === 'offline');
+      document.getElementById('councilSizeSelect')?.closest('div')?.classList.toggle('hidden', aiModeSelect.value === 'offline');
+      const modeStatus = document.getElementById('aiModeStatus');
+      modeStatus.textContent = aiModeSelect.value === 'offline' ? 'Offline local AI' : 'Cloud AI';
+      modeStatus.classList.toggle('text-emerald-400', aiModeSelect.value === 'offline');
+      modeStatus.classList.toggle('text-zinc-500', aiModeSelect.value !== 'offline');
+    }
+
+    aiModeSelect.addEventListener('change', updateAiModeSettings);
+
     function loadKeys() {
+      aiModeSelect.value = localStorage.getItem('nexus_ai_mode') === 'offline' ? 'offline' : 'cloud';
+      localAiEndpointInput.value = localStorage.getItem('nexus_local_ai_endpoint') || 'http://127.0.0.1:8000/v1/chat/completions';
+      localAiModelInput.value = localStorage.getItem('nexus_local_ai_model') || 'local-pytorch-model';
+      updateAiModeSettings();
       geminiKeyInput.value = localStorage.getItem('nexus_gemini_key') || '';
+      groqKeyInput.value = localStorage.getItem('nexus_groq_key') || '';
       const savedGeminiModel = localStorage.getItem('nexus_gemini_model') || 'gemini-3.8-flash';
       geminiModelSelect.value = [...geminiModelSelect.options].some(option => option.value === savedGeminiModel)
         ? savedGeminiModel
         : 'gemini-3.8-flash';
       openRouterKeyInput.value = localStorage.getItem('nexus_openrouter_key') || '';
-      const savedCouncilSize = parseInt(localStorage.getItem('nexus_council_size') || '3', 10);
-      councilSizeSelect.value = [1, 2, 3].includes(savedCouncilSize) ? String(savedCouncilSize) : '3';
     }
 
     document.getElementById('settingsBtn').onclick = () => {
@@ -304,35 +639,312 @@
     };
     document.getElementById('closeModalBtn').onclick = () => apiModal.classList.add('hidden');
     document.getElementById('saveKeysBtn').onclick = () => {
+      localStorage.setItem('nexus_ai_mode', aiModeSelect.value);
+      localStorage.setItem('nexus_local_ai_endpoint', localAiEndpointInput.value.trim());
+      localStorage.setItem('nexus_local_ai_model', localAiModelInput.value.trim());
       localStorage.setItem('nexus_gemini_key', geminiKeyInput.value.trim());
       localStorage.setItem('nexus_gemini_model', geminiModelSelect.value);
       localStorage.setItem('nexus_openrouter_key', openRouterKeyInput.value.trim());
-      localStorage.setItem('nexus_council_size', councilSizeSelect.value);
+      localStorage.setItem('nexus_groq_key', groqKeyInput.value.trim());
       apiModal.classList.add('hidden');
-      appendChat("System", "API Keys saved successfully! You are ready to generate.");
+      appendChat("System", "Provider settings saved. The Groq key is stored in this browser.");
     };
 
     // Live preview updater
     function updatePreview() {
       if (!editorInstance) return;
-      const code = editorInstance.getValue();
       const iframe = document.getElementById('previewFrame');
-      const blob = new Blob([code], { type: 'text/html' });
-      iframe.src = URL.createObjectURL(blob);
+      const htmlPath = Object.prototype.hasOwnProperty.call(workspaceFiles, 'index.html')
+        ? 'index.html'
+        : Object.keys(workspaceFiles).find(path => /\.html?$/i.test(path));
+      if (!htmlPath) {
+        appendConsole('error', 'Preview requires an HTML file in the workspace.');
+        return;
+      }
+      let code = htmlPath === activeFile ? editorInstance.getValue() : workspaceFiles[htmlPath];
+      const injectedStyles = [];
+      const injectedScripts = [];
+      const referencedFiles = new Set();
+      const resolveLocalFile = source => {
+        const cleanSource = source.split(/[?#]/)[0].replace(/^\.\/+/, '');
+        const base = htmlPath.includes('/') ? `${htmlPath.slice(0, htmlPath.lastIndexOf('/') + 1)}${cleanSource}` : cleanSource;
+        const candidates = [cleanSource, base, cleanSource.split('/').pop()];
+        return candidates.find(path => Object.prototype.hasOwnProperty.call(workspaceFiles, path));
+      };
+
+      code = code.replace(/<link\b[^>]*>/gi, tag => {
+        const href = tag.match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1];
+        if (!href || /^(?:[a-z]+:|\/\/|#)/i.test(href) || !/\.css(?:[?#]|$)/i.test(href)) return tag;
+        const path = resolveLocalFile(href);
+        if (!path) return tag;
+        referencedFiles.add(path);
+        return `<style data-workspace-file="${path}">\n${workspaceFiles[path]}\n</style>`;
+      });
+      code = code.replace(/<scr(?:ipt)\b([^>]*)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>\s*<\/script>/gi, (tag, before, quote, src) => {
+        if (/^(?:[a-z]+:|\/\/|#)/i.test(src)) return tag;
+        const path = resolveLocalFile(src);
+        if (!path) return tag;
+        referencedFiles.add(path);
+        return `\x3Cscript data-workspace-file="${path}">\n${workspaceFiles[path]}\n<\/script>`;
+      });
+      Object.keys(workspaceFiles).forEach(path => {
+        if (/\.css$/i.test(path) && !referencedFiles.has(path)) injectedStyles.push(workspaceFiles[path]);
+        if (/\.m?js$/i.test(path) && !referencedFiles.has(path)) injectedScripts.push(workspaceFiles[path]);
+      });
+      if (injectedStyles.length) {
+        const styles = `<style data-workspace-files>\n${injectedStyles.join('\n')}\n</style>`;
+        code = /<\/head>/i.test(code) ? code.replace(/<\/head>/i, `${styles}\n</head>`) : `${styles}\n${code}`;
+      }
+      const consoleBridge = `\x3Cscript>
+        (() => {
+          const send = (level, args) => {
+            let message;
+            try { message = args.map(value => typeof value === 'string' ? value : JSON.stringify(value) ?? String(value)).join(' '); }
+            catch { message = args.map(String).join(' '); }
+            parent.postMessage({ source: 'nexus-preview-console', level, message }, '*');
+          };
+          ['log', 'info', 'warn', 'error', 'debug'].forEach(level => {
+            const original = console[level].bind(console);
+            console[level] = (...args) => { original(...args); send(level, args); };
+          });
+          addEventListener('error', event => send('error', [event.message + ' (' + event.filename + ':' + event.lineno + ')']));
+          addEventListener('unhandledrejection', event => send('error', ['Unhandled promise rejection:', event.reason]));
+        })();
+      <\/script>`;
+      if (/<head(?:\s[^>]*)?>/i.test(code)) code = code.replace(/<head(?:\s[^>]*)?>/i, match => `${match}\n${consoleBridge}`);
+      else code = `${consoleBridge}\n${code}`;
+      if (injectedScripts.length) {
+        const scripts = `\x3Cscript data-workspace-files>\n${injectedScripts.join('\n')}\n<\/script>`;
+        code = /<\/body>/i.test(code) ? code.replace(/<\/body>/i, `${scripts}\n\x3C/body>`) : `${code}\n${scripts}`;
+      }
+      document.getElementById('consolePanel').replaceChildren();
+      document.getElementById('consoleErrorCount').textContent = '';
+      document.getElementById('consoleErrorCount').dataset.count = '0';
+      iframe.srcdoc = code;
     }
 
     document.getElementById('runBtn').onclick = updatePreview;
     document.getElementById('refreshPreview').onclick = updatePreview;
+    function appendConsole(level, message) {
+      const panel = document.getElementById('consolePanel');
+      const row = document.createElement('div');
+      row.className = `border-b border-[#2d2d2d] py-1 ${level === 'error' ? 'text-red-300' : level === 'warn' ? 'text-amber-300' : 'text-zinc-300'}`;
+      row.textContent = `[${level.toUpperCase()}] ${message}`;
+      panel.appendChild(row);
+      panel.scrollTop = panel.scrollHeight;
+      if (level === 'error') {
+        const counter = document.getElementById('consoleErrorCount');
+        counter.textContent = `(${Number(counter.dataset.count || 0) + 1})`;
+        counter.dataset.count = String(Number(counter.dataset.count || 0) + 1);
+      }
+    }
+
+    window.addEventListener('message', event => {
+      if (event.source !== document.getElementById('previewFrame').contentWindow ||
+          event.data?.source !== 'nexus-preview-console') return;
+      appendConsole(event.data.level, event.data.message);
+    });
+    document.getElementById('previewTab').onclick = () => {
+      document.getElementById('previewFrame').classList.remove('hidden');
+      document.getElementById('consolePanel').classList.add('hidden');
+      document.getElementById('previewTab').classList.add('text-white');
+      document.getElementById('consoleTab').classList.remove('text-white');
+      document.getElementById('consoleTab').classList.add('text-zinc-500');
+    };
+    document.getElementById('consoleTab').onclick = () => {
+      document.getElementById('previewFrame').classList.add('hidden');
+      document.getElementById('consolePanel').classList.remove('hidden');
+      document.getElementById('consoleTab').classList.add('text-white');
+      document.getElementById('consoleTab').classList.remove('text-zinc-500');
+      document.getElementById('previewTab').classList.remove('text-white');
+      document.getElementById('previewTab').classList.add('text-zinc-500');
+    };
 
     // Export HTML File
     document.getElementById('downloadBtn').onclick = () => {
       if (!editorInstance) return;
-      const blob = new Blob([editorInstance.getValue()], { type: "text/html" });
+      workspaceFiles[activeFile] = editorInstance.getValue();
+      persistWorkspace();
+      const blob = new Blob([editorInstance.getValue()], { type: /\.html?$/i.test(activeFile) ? 'text/html' : 'text/plain' });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "index.html";
+      a.download = activeFile;
       a.click();
     };
+
+    document.getElementById('downloadProjectBtn').onclick = async () => {
+      if (!window.JSZip) {
+        appendChat('System Error', 'ZIP export is unavailable because the JSZip library did not load.');
+        return;
+      }
+      workspaceFiles[activeFile] = editorInstance.getValue();
+      persistWorkspace();
+      const zip = new JSZip();
+      Object.entries(workspaceFiles).forEach(([path, content]) => zip.file(path, content));
+      workspaceFolders.forEach(path => zip.folder(path));
+      try {
+        const archive = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(archive);
+        link.download = 'nexus-project.zip';
+        link.click();
+        URL.revokeObjectURL(link.href);
+      } catch (error) {
+        console.error('Could not create project ZIP:', error);
+        appendChat('System Error', `Could not create project ZIP: ${error.message}`);
+      }
+    };
+
+    const gistModal = document.getElementById('gistModal');
+    const gistIdInput = document.getElementById('gistIdInput');
+    const githubTokenInput = document.getElementById('githubTokenInput');
+    document.getElementById('gistBtn').onclick = () => {
+      githubTokenInput.value = sessionStorage.getItem('nexus_github_token') || '';
+      gistIdInput.value = sessionStorage.getItem('nexus_gist_id') || '';
+      gistModal.classList.remove('hidden');
+    };
+    document.getElementById('closeGistModalBtn').onclick = () => gistModal.classList.add('hidden');
+    githubTokenInput.addEventListener('input', () => {
+      if (githubTokenInput.value) sessionStorage.setItem('nexus_github_token', githubTokenInput.value.trim());
+      else sessionStorage.removeItem('nexus_github_token');
+    });
+    function parseGistId(value) {
+      const match = value.trim().match(/(?:gist\.github\.com\/(?:[^/]+\/)?|^)([a-f0-9]{20,})\/?$/i);
+      return match?.[1] || '';
+    }
+    function currentWorkspace() {
+      if (editorInstance) workspaceFiles[activeFile] = editorInstance.getValue();
+      persistWorkspace();
+      return workspaceFiles;
+    }
+    document.getElementById('loadGistBtn').onclick = async () => {
+      const gistId = parseGistId(gistIdInput.value);
+      if (!gistId) {
+        alert('Enter a valid GitHub Gist URL or ID.');
+        return;
+      }
+      const headers = { Accept: 'application/vnd.github+json' };
+      const token = githubTokenInput.value.trim() || sessionStorage.getItem('nexus_github_token');
+      if (token) headers.Authorization = `Bearer ${token}`;
+      try {
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+        const gist = await response.json();
+        if (!response.ok) throw new Error(gist.message || `GitHub returned ${response.status}.`);
+        const imported = {};
+        for (const file of Object.values(gist.files || {})) {
+          if (typeof file.content === 'string') imported[file.filename] = file.content;
+          else if (file.raw_url) {
+            const rawResponse = await fetch(file.raw_url);
+            if (!rawResponse.ok) throw new Error(`Could not download ${file.filename} from the Gist.`);
+            imported[file.filename] = await rawResponse.text();
+          }
+        }
+        const normalized = normalizeWorkspace(imported);
+        if (!normalized) throw new Error('This Gist contains no readable files.');
+        workspaceFiles = normalized;
+        workspaceFolders = new Set();
+        activeFile = Object.keys(workspaceFiles).find(path => path === 'index.html') || Object.keys(workspaceFiles)[0];
+        editorInstance.setValue(workspaceFiles[activeFile]);
+        monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+        updateActiveFileLabels();
+        renderFileTree();
+        persistWorkspace();
+        gistIdInput.value = gist.id;
+        sessionStorage.setItem('nexus_gist_id', gist.id);
+        sessionStorage.setItem('nexus_gist_files', JSON.stringify(Object.keys(gist.files || {})));
+        gistModal.classList.add('hidden');
+        appendChat('System', `Loaded ${Object.keys(workspaceFiles).length} file(s) from GitHub Gist.`);
+      } catch (error) {
+        console.error('Could not load GitHub Gist:', error);
+        appendChat('System Error', `Could not load Gist: ${error.message}`);
+      }
+    };
+    document.getElementById('saveGistBtn').onclick = async () => {
+      const token = githubTokenInput.value.trim() || sessionStorage.getItem('nexus_github_token');
+      if (!token) {
+        alert('Enter a GitHub token with gist permission to create or update a Gist.');
+        return;
+      }
+      const gistId = parseGistId(gistIdInput.value);
+      const files = Object.fromEntries(Object.entries(currentWorkspace()).map(([filename, content]) => [filename, { content }]));
+      try {
+        if (gistId) {
+          const existingResponse = await fetch(`https://api.github.com/gists/${gistId}`, {
+            headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}` }
+          });
+          const existing = await existingResponse.json();
+          if (!existingResponse.ok) throw new Error(existing.message || `GitHub returned ${existingResponse.status}.`);
+          Object.keys(existing.files || {}).forEach(filename => {
+            if (!Object.prototype.hasOwnProperty.call(files, filename)) files[filename] = null;
+          });
+        }
+        const response = await fetch(gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists', {
+          method: gistId ? 'PATCH' : 'POST',
+          headers: {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ description: 'NexusIDE workspace', public: false, files })
+        });
+        const gist = await response.json();
+        if (!response.ok) throw new Error(gist.message || `GitHub returned ${response.status}.`);
+        gistIdInput.value = gist.id;
+        sessionStorage.setItem('nexus_gist_id', gist.id);
+        sessionStorage.setItem('nexus_gist_files', JSON.stringify(Object.keys(gist.files || {})));
+        appendChat('System', `Workspace saved as a ${gist.public ? 'public' : 'secret'} Gist: ${gist.html_url}`);
+      } catch (error) {
+        console.error('Could not save GitHub Gist:', error);
+        appendChat('System Error', `Could not save Gist: ${error.message}`);
+      }
+    };
+
+    document.getElementById('quickFixBtn').onclick = async () => {
+      if (!editorInstance) return;
+      const offlineMode = localStorage.getItem('nexus_ai_mode') === 'offline';
+      const groqKey = localStorage.getItem('nexus_groq_key') || groqKeyInput.value.trim();
+      if (!offlineMode && !groqKey) {
+        appendChat('System', 'Add a Groq API key in API Keys to use Quick Fix.');
+        apiModal.classList.remove('hidden');
+        return;
+      }
+      const selectionRange = editorInstance.getSelection();
+      const selection = editorInstance.getModel().getValueInRange(selectionRange);
+      const request = prompt('Describe the small code fix or UI label to make:');
+      if (!request?.trim()) return;
+      const original = selection || editorInstance.getValue();
+      const button = document.getElementById('quickFixBtn');
+      button.disabled = true;
+      button.textContent = 'Fixing…';
+      try {
+        const systemMessage = 'Make only the requested small code change. Return only the complete replacement text for the supplied code, with no markdown fences or explanation.';
+        const userMessage = `File: ${activeFile}\nRequested change: ${request.trim()}\n\n${selection ? 'Replace only this selected text:' : 'Replace the complete file:'}\n${original}`;
+        const fixedResponse = offlineMode
+          ? await requestLocalAI(systemMessage, userMessage)
+          : await requestOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, 'llama-3.1-8b-instant', systemMessage, userMessage, 2048);
+        const fixed = cleanCodeBlocks(fixedResponse);
+        if (!fixed) throw new Error(`${offlineMode ? 'Local model' : 'Groq'} returned an empty fix.`);
+        if (selection) {
+          editorInstance.executeEdits('groq-quick-fix', [{ range: selectionRange, text: fixed }]);
+        } else {
+          editorInstance.setValue(fixed);
+        }
+        appendChat(offlineMode ? 'Offline Quick Fix' : 'Groq Quick Fix', `Applied the requested change to ${activeFile}.`);
+      } catch (error) {
+        console.error('Groq Quick Fix failed:', error);
+        appendChat('System Error', `Quick Fix failed: ${error.message}`);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Quick Fix';
+      }
+    };
+
+    document.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && event.key === '.') {
+        event.preventDefault();
+        document.getElementById('quickFixBtn').click();
+      }
+    });
 
     // Chat Message Helper
     function appendChat(author, text, isAction = false) {
@@ -346,14 +958,15 @@
           : 'bg-[#252526] border-[#383838] text-zinc-300'
       }`;
 
-      msg.innerHTML = `
-        <div class="flex items-center gap-1.5 font-semibold text-[11px] mb-1 ${
-          author === 'Gemini' ? 'text-blue-400' : author === 'Nexus Council' ? 'text-pink-400' : 'text-zinc-400'
-        }">
-          <span>${author}</span>
-        </div>
-        <div>${text}</div>
-      `;
+      const heading = document.createElement('div');
+      heading.className = `flex items-center gap-1.5 font-semibold text-[11px] mb-1 ${
+        author === 'Gemini' ? 'text-blue-400' : author === 'United Console' ? 'text-pink-400' : 'text-zinc-400'
+      }`;
+      heading.textContent = author;
+      const content = document.createElement('div');
+      content.className = 'whitespace-pre-wrap break-words';
+      content.textContent = text;
+      msg.append(heading, content);
       container.appendChild(msg);
       container.scrollTop = container.scrollHeight;
     }
@@ -362,25 +975,95 @@
     function cleanCodeBlocks(str) {
       if (!str) return '';
       let clean = str.trim();
-      if (clean.includes("```html")) {
-        clean = clean.split("```html")[1].split("```")[0];
-      } else if (clean.includes("```")) {
-        clean = clean.split("```")[1].split("```")[0];
+      const fence = clean.match(/^```(?:json|html|javascript|js|css)?\s*([\s\S]*?)```$/i);
+      if (fence) {
+        clean = fence[1];
       }
       return clean.trim();
+    }
+
+    function parseGeneratedProject(responseText) {
+      const cleaned = cleanCodeBlocks(responseText);
+      if (cleaned.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(cleaned);
+          const files = normalizeWorkspace(parsed.files || parsed);
+          if (files) return files;
+        } catch (error) {
+          console.warn('AI response was not valid workspace JSON; treating it as HTML:', error);
+        }
+      }
+      return { 'index.html': cleaned };
+    }
+
+    function serializeWorkspace(files = currentWorkspace()) {
+      return Object.entries(files).map(([path, content]) => `--- ${path} ---\n${content}`).join('\n\n');
+    }
+
+    async function requestOpenAICompatible(endpoint, apiKey, model, systemMessage, userMessage, maxTokens = 4096) {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [
+            { role: 'system', content: systemMessage },
+            { role: 'user', content: userMessage }
+          ]
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || `Model endpoint returned ${response.status}.`);
+      const answer = data.choices?.[0]?.message?.content;
+      if (!answer) throw new Error('Model endpoint returned an empty response.');
+      return answer;
+    }
+
+    async function requestLocalAI(systemMessage, userMessage, maxTokens = 4096) {
+      const endpoint = localStorage.getItem('nexus_local_ai_endpoint') || 'http://127.0.0.1:8000/v1/chat/completions';
+      const model = localStorage.getItem('nexus_local_ai_model') || 'local-pytorch-model';
+      let url;
+      try {
+        url = new URL(endpoint);
+      } catch {
+        throw new Error('Enter a valid local model endpoint URL in API settings.');
+      }
+      if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
+          !['http:', 'https:'].includes(url.protocol)) {
+        throw new Error('Offline mode only accepts a model endpoint on this computer (localhost or 127.0.0.1).');
+      }
+      return requestOpenAICompatible(url.href, '', model, systemMessage, userMessage, maxTokens);
+    }
+
+    async function requestGemini(prompt, key, model) {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error?.message || `Gemini returned ${response.status}.`);
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error('Gemini returned an empty response.');
+      return text;
     }
 
     // CORE AI WORKFLOW
     document.getElementById('sendPromptBtn').onclick = async () => {
       const promptInput = document.getElementById('userPrompt');
       const prompt = promptInput.value.trim();
-      const geminiKey = localStorage.getItem('nexus_gemini_key') || geminiKeyInput.value.trim();
+      const offlineMode = localStorage.getItem('nexus_ai_mode') === 'offline';
+      const geminiKey = offlineMode ? '' : (localStorage.getItem('nexus_gemini_key') || geminiKeyInput.value.trim());
       const geminiModel = geminiModelSelect.value;
-      const openRouterKey = localStorage.getItem('nexus_openrouter_key') || openRouterKeyInput.value.trim();
-      const councilSize = parseInt(councilSizeSelect.value, 10);
+      const openRouterKey = offlineMode ? '' : (localStorage.getItem('nexus_openrouter_key') || openRouterKeyInput.value.trim());
+      const groqKey = offlineMode ? '' : (localStorage.getItem('nexus_groq_key') || groqKeyInput.value.trim());
 
       if (!prompt) return;
-      if (!geminiKey) {
+      if (!offlineMode && !geminiKey) {
         alert("Please set your Gemini API Key in 'API Keys' first.");
         apiModal.classList.remove('hidden');
         return;
@@ -398,60 +1081,62 @@
       progressBox.classList.remove('hidden');
       activeAIsList.innerHTML = '';
       progressBar.style.width = '10%';
-      stageTitle.textContent = "Stage 1: Gemini Architecting...";
+      stageTitle.textContent = offlineMode ? 'Stage 1: Local model architecting...' : 'Stage 1: Gemini Architecting...';
       progressCount.textContent = "1/1 Genesis";
 
-      appendChat("Gemini", "Drafting base architecture, structure, and initial JS/CSS...", true);
+      appendChat(offlineMode ? 'Offline PyTorch' : 'Gemini', 'Drafting the initial project workspace...', true);
 
-      // STEP 1: Gemini generates initial code
+      // STEP 1: Architect the project using the configured provider
       let initialGeminiDraft = "";
       try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `You are an expert web developer. Create a single, self-contained, complete HTML file (with inline <style> and <script>) that fulfills this user prompt:
+        const architecturePrompt = `You are the lead architect on United Console. Create a complete web project that fulfills this user prompt:
 "${prompt}"
 
 Rules:
-- Complete standalone working code.
-- No external unlinked libraries unless using standard CDN scripts (Tailwind, Lucide, FontAwesome, or Canvas).
-- Return ONLY the clean raw HTML/CSS/JS without conversational fluff.`
-              }]
-            }]
-          })
-        });
-
-        const geminiData = await geminiRes.json();
-        if (geminiData.error) throw new Error(geminiData.error.message);
-        
-        initialGeminiDraft = cleanCodeBlocks(geminiData.candidates?.[0]?.content?.parts?.[0]?.text);
-        if (!initialGeminiDraft) throw new Error("Gemini returned empty response.");
-        
-        // Show first draft in editor right away!
-        editorInstance.setValue(initialGeminiDraft);
+- Include index.html and separate style.css/script.js when useful; keep all local references correct.
+- Return ONLY valid JSON in this shape: {"files":{"index.html":"complete file contents","style.css":"complete file contents"}}.
+- Escape line breaks and quotes correctly for JSON. No markdown fences or conversational text.`;
+        const generatedText = offlineMode
+          ? await requestLocalAI('Create a web project and return only the requested JSON file map.', architecturePrompt, 8192)
+          : await requestGemini(architecturePrompt, geminiKey, geminiModel);
+        if (!generatedText) throw new Error(`${offlineMode ? 'Local model' : 'Gemini'} returned an empty response.`);
+        workspaceFiles = parseGeneratedProject(generatedText);
+        workspaceFolders = new Set();
+        activeFile = Object.keys(workspaceFiles).find(path => path === 'index.html') ||
+          Object.keys(workspaceFiles).find(path => /\.html?$/i.test(path)) || Object.keys(workspaceFiles)[0];
+        initialGeminiDraft = serializeWorkspace(workspaceFiles);
+        editorInstance.setValue(workspaceFiles[activeFile]);
+        monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+        updateActiveFileLabels();
+        renderFileTree();
+        persistWorkspace();
         updatePreview();
-        appendChat("Gemini", "Base build synthesized. Handing over to the OpenRouter Multi-AI Council for debugging...");
+        appendChat(offlineMode ? 'Offline PyTorch' : 'Gemini', 'Base workspace synthesized. Handing it to the United Console specialist team...');
 
       } catch (err) {
-        appendChat("System Error", "Gemini failed: " + err.message);
+          console.error('Gemini project generation failed:', err);
+          appendChat("System Error", "Gemini failed: " + err.message);
+          progressBox.classList.add('hidden');
+          return;
+      }
+
+      // STEP 2: Focused specialist reviews
+      if (!offlineMode && !openRouterKey && !groqKey) {
+        appendChat("System", "No OpenRouter or Groq key is configured. Gemini's initial project is active; add provider keys to enable specialist collaboration.");
         progressBox.classList.add('hidden');
         return;
       }
 
-      // STEP 2: Committee inspection via OpenRouter
-      if (!openRouterKey) {
-        appendChat("System", "Notice: OpenRouter API Key not detected. Skipping multi-AI committee review stage. Your Gemini draft is active in the editor.");
-        progressBox.classList.add('hidden');
-        return;
-      }
-
-      stageTitle.textContent = `Stage 2: Council Reviewing (${councilSize} Models Parallel)...`;
+      stageTitle.textContent = offlineMode ? 'Stage 2: Local model specialists collaborating...' : 'Stage 2: United Console specialists collaborating...';
       progressBar.style.width = '35%';
-
-      const selectedModels = COMMITTEE_MODELS.slice(0, councilSize);
+      const roleAssignments = [
+        'Review functional behavior and edge cases.',
+        'Review visual design, accessibility, and responsive behavior.',
+        'Review code quality, compatibility, and performance.'
+      ];
+      const selectedModels = offlineMode
+        ? roleAssignments.map((role, index) => ({ id: `local-specialist-${index}`, name: `Local PyTorch specialist ${index + 1}`, role, provider: 'local' }))
+        : openRouterKey ? COMMITTEE_MODELS.map((model, index) => ({ ...model, role: roleAssignments[index] })) : [];
       let finishedReviews = 0;
 
       // Populate visual badge placeholders
@@ -459,106 +1144,143 @@ Rules:
         const badge = document.createElement('span');
         badge.id = `badge-${m.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
         badge.className = 'text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1';
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-yellow-500 status-pulse"></span> ${m.name}`;
+        badge.textContent = `${m.name}: ${m.role}`;
         activeAIsList.appendChild(badge);
       });
+      if (groqKey) {
+        const badge = document.createElement('span');
+        badge.id = 'badge-groq-microcopy';
+        badge.className = 'text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded';
+        badge.textContent = 'Groq Llama 3.1 8B: labels and small usability fixes';
+        activeAIsList.appendChild(badge);
+      }
 
       // Dispatch parallel calls to OpenRouter
       const critiques = [];
-      const reviewPromises = selectedModels.map(async (model) => {
+      const providerFailures = [];
+      const totalReviewers = selectedModels.length + Number(Boolean(groqKey));
+      const reviewPromises = selectedModels.map(async (model, modelIndex) => {
         const badge = document.getElementById(`badge-${model.id.replace(/[^a-zA-Z0-9]/g, '-')}`);
         try {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${openRouterKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": window.location.href,
-              "X-Title": "NexusIDE HTML Studio"
-            },
-            body: JSON.stringify({
-              model: model.id,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an elite QA and senior code reviewer. Review the provided HTML/CSS/JS code. Find functional bugs, visual flaws, missing edge cases, and layout responsiveness problems. Respond in 2-3 concise bullet points with exact, actionable fixes."
-                },
-                {
-                  role: "user",
-                  content: `User Request: ${prompt}\n\nCode to inspect:\n${initialGeminiDraft.substring(0, 4000)}`
-                }
-              ]
-            })
-          });
-
-          const data = await res.json();
-          const review = data.choices?.[0]?.message?.content;
-          if (review) {
-            critiques.push(`[${model.name}]:\n${review}`);
-            if (badge) {
-              badge.className = 'text-[10px] bg-green-950 text-green-300 border border-green-700 px-1.5 py-0.5 rounded flex items-center gap-1';
-              badge.innerHTML = `✓ ${model.name}`;
-            }
+          const systemMessage = `You are a United Console specialist. Your only assignment: ${model.role || roleAssignments[modelIndex]} Give 2-3 concise, actionable findings. Do not rewrite code.`;
+          const userMessage = `User Request: ${prompt}\n\nProject files:\n${initialGeminiDraft.substring(0, 12000)}`;
+          let review;
+          if (offlineMode) {
+            review = await requestLocalAI(systemMessage, userMessage, 1024);
+          } else {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${openRouterKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': window.location.href,
+                'X-Title': 'NexusIDE United Console'
+              },
+              body: JSON.stringify({ model: model.id, messages: [{ role: 'system', content: systemMessage }, { role: 'user', content: userMessage }] })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error?.message || `OpenRouter returned ${response.status}.`);
+            review = data.choices?.[0]?.message?.content;
           }
-        } catch (e) {
+          if (!review) throw new Error('Model returned an empty review.');
+          critiques.push(`[${model.name} — ${model.role || roleAssignments[modelIndex]}]\n${review}`);
+          if (badge) {
+            badge.className = 'text-[10px] bg-green-950 text-green-300 border border-green-700 px-1.5 py-0.5 rounded flex items-center gap-1';
+            badge.textContent = `${model.name}: complete`;
+          }
+        } catch (error) {
+          providerFailures.push(`${model.name}: ${error.message}`);
+          console.error(`${model.name} review failed:`, error);
           if (badge) {
             badge.className = 'text-[10px] bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded flex items-center gap-1';
-            badge.innerHTML = `✕ ${model.name}`;
+            badge.textContent = `${model.name}: failed`;
           }
         } finally {
           finishedReviews++;
-          progressCount.textContent = `${finishedReviews}/${councilSize} Finished`;
-          progressBar.style.width = `${35 + (finishedReviews / councilSize) * 40}%`;
+          progressCount.textContent = `${finishedReviews}/${totalReviewers} specialist(s)`;
+          progressBar.style.width = `${35 + (finishedReviews / Math.max(totalReviewers, 1)) * 40}%`;
         }
       });
 
       await Promise.allSettled(reviewPromises);
+      if (groqKey) {
+        const badge = document.getElementById('badge-groq-microcopy');
+        try {
+          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'llama-3.1-8b-instant',
+              max_tokens: 500,
+              messages: [
+                { role: 'system', content: 'Review only concise interface labels, helper text, and small usability details. Return a short list of specific suggestions; do not rewrite code.' },
+                { role: 'user', content: `User request: ${prompt}\n\nWorkspace:\n${initialGeminiDraft.substring(0, 8000)}` }
+              ]
+            })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error?.message || `Groq returned ${response.status}.`);
+          const review = data.choices?.[0]?.message?.content;
+          if (!review) throw new Error('Groq returned an empty review.');
+          critiques.push(`[Groq Llama 3.1 8B — labels and small usability fixes]\n${review}`);
+          badge.className = 'text-[10px] bg-green-950 text-green-300 border border-green-700 px-1.5 py-0.5 rounded';
+          badge.textContent = 'Groq Llama 3.1 8B: complete';
+        } catch (error) {
+          providerFailures.push(`Groq Llama 3.1 8B: ${error.message}`);
+          console.error('Groq collaboration failed:', error);
+          badge.className = 'text-[10px] bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded';
+          badge.textContent = 'Groq Llama 3.1 8B: failed';
+        }
+        finishedReviews++;
+        progressCount.textContent = `${finishedReviews}/${totalReviewers} specialist(s)`;
+        progressBar.style.width = `${35 + (finishedReviews / Math.max(totalReviewers, 1)) * 40}%`;
+      }
+      if (providerFailures.length) appendChat('United Console', `Some specialist requests failed:\n${providerFailures.join('\n')}`);
 
       // STEP 3: Final Synthesis
-      stageTitle.textContent = "Stage 3: Synthesizing Council Corrections...";
+      stageTitle.textContent = "Stage 3: Integrating specialist findings...";
       progressBar.style.width = '90%';
-      appendChat("Nexus Council", `Synthesizing ${critiques.length} expert audits into the definitive codebase...`, true);
+      appendChat("United Console", `Integrating ${critiques.length} specialist findings into the project...`, true);
 
       try {
-        const synthesisPrompt = `You are the Lead Master Software Architect. You have an initial HTML application draft and a council of AI code reviews pointing out bugs, UI improvements, and missing logic.
+        const synthesisPrompt = `You are the lead integrator in United Console. Integrate relevant specialist findings into this complete project.
 
 Original User Request:
 "${prompt}"
 
-Original Code Draft:
-\`\`\`html
+Original project files:
+\`\`\`
 ${initialGeminiDraft}
 \`\`\`
 
-Council Critiques and Fix Suggestions:
-${critiques.slice(0, 10).join("\n\n")}
+Specialist findings:
+${critiques.join("\n\n") || 'No specialist findings were available; preserve and polish the project.'}
 
-Task: Rewrite the entire HTML file incorporating all critical bug fixes, UI improvements, animations, responsiveness, and polished code.
-Return ONLY the raw executable HTML code inside \`\`\`html\`\`\` block without additional talk.`;
+Task: Integrate high-value changes while preserving all project files and relative paths.
+Return ONLY valid JSON in the shape {"files":{"relative/path":"complete file contents"}}. Include every project file, with no markdown fences.`;
 
-        // Send to synthesis (using Gemini or Top OpenRouter Model)
-        const finalRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: synthesisPrompt }] }]
-          })
-        });
-
-        const finalData = await finalRes.json();
-        const refinedCode = cleanCodeBlocks(finalData.candidates?.[0]?.content?.parts?.[0]?.text);
-
-        if (refinedCode && refinedCode.length > 50) {
-          // Typewriter write into Monaco Editor
-          typeCodeIntoEditor(refinedCode);
-          appendChat("Nexus Council", `Done! Bug-fixed version integrated into the editor with council audit applied.`);
-        } else {
-          editorInstance.setValue(initialGeminiDraft);
-          updatePreview();
-        }
+        const refinedText = offlineMode
+          ? await requestLocalAI('Integrate the project specialist findings and return only the requested complete JSON file map.', synthesisPrompt, 8192)
+          : await requestGemini(synthesisPrompt, geminiKey, geminiModel);
+        if (!refinedText) throw new Error(`${offlineMode ? 'Local model' : 'Gemini'} returned an empty synthesis.`);
+        const refinedFiles = parseGeneratedProject(refinedText);
+        const isCompleteWorkspace = Object.keys(refinedFiles).length > 1 || Object.keys(refinedFiles)[0] !== 'index.html';
+        workspaceFiles = isCompleteWorkspace ? refinedFiles : { ...workspaceFiles, ...refinedFiles };
+        if (isCompleteWorkspace) workspaceFolders = new Set();
+        activeFile = Object.prototype.hasOwnProperty.call(workspaceFiles, activeFile)
+          ? activeFile
+          : Object.keys(workspaceFiles).find(path => path === 'index.html') || Object.keys(workspaceFiles)[0];
+        editorInstance.setValue(workspaceFiles[activeFile]);
+        monaco.editor.setModelLanguage(editorInstance.getModel(), getFileLanguage(activeFile));
+        updateActiveFileLabels();
+        renderFileTree();
+        persistWorkspace();
+        updatePreview();
+        appendChat('United Console', `Integrated ${critiques.length} specialist review(s) across ${Object.keys(workspaceFiles).length} project file(s).`, true);
 
       } catch (synthErr) {
-        appendChat("System Error", "Synthesis failed: " + synthErr.message + ". Keeping initial draft.");
+        console.error('United Console synthesis failed:', synthErr);
+        appendChat("System Error", "United Console synthesis failed: " + synthErr.message + ". The initial project remains active.");
       } finally {
         progressBar.style.width = '100%';
         setTimeout(() => progressBox.classList.add('hidden'), 2000);
@@ -586,7 +1308,7 @@ Return ONLY the raw executable HTML code inside \`\`\`html\`\`\` block without a
     // Auto-check on launch
     window.addEventListener('DOMContentLoaded', () => {
       loadKeys();
-      if (!geminiKeyInput.value) {
+      if (aiModeSelect.value === 'cloud' && !geminiKeyInput.value) {
         apiModal.classList.remove('hidden');
       }
     });
